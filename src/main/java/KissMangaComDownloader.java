@@ -22,8 +22,10 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 /**
  * Note that this only works on the kissmanga.com domain, and not the
@@ -200,10 +202,18 @@ public class KissMangaComDownloader implements Closeable {
      */
     public void downloadAll(String rootMangaPage) {
         gotoPage(rootMangaPage);
-
         mangaTitle = stripTitle(driver.getTitle());
         mangaDirectory = new File(outputDirectory, mangaTitle);
+        // Save logs to files
+        try {
+            FileHandler logFileHandler = new FileHandler(outputDirectory.getPath() + mangaTitle + ".log");
+            logFileHandler.setFormatter(new SimpleFormatter());
+            logger.addHandler(logFileHandler);
 
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        // Get chapters
         String html = driver.getPageSource();
         Document page = Jsoup.parse(html);
         Elements elements = page.select("td a[href]");
