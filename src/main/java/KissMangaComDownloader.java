@@ -13,9 +13,16 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
+
+import nl.siegmann.epublib.domain.Book;
+import nl.siegmann.epublib.domain.Resource;
+import nl.siegmann.epublib.epub.EpubReader;
+import nl.siegmann.epublib.epub.EpubWriter;
 import pdf.converter.epub.EpubCreator;
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -206,7 +213,7 @@ public class KissMangaComDownloader implements Closeable {
         mangaDirectory = new File(outputDirectory, mangaTitle);
         // Save logs to files
         try {
-            FileHandler logFileHandler = new FileHandler(outputDirectory.getPath() + mangaTitle + ".log");
+            FileHandler logFileHandler = new FileHandler(outputDirectory.getPath() + "/" + mangaTitle + ".log");
             logFileHandler.setFormatter(new SimpleFormatter());
             logger.addHandler(logFileHandler);
 
@@ -238,11 +245,30 @@ public class KissMangaComDownloader implements Closeable {
      */
     private void convert2epub() {
         try {
+            // exclude cover
+            File cover = new File(mangaDirectory, "cover.png");
+            if (cover.exists()) {
+                cover.renameTo(new File(mangaDirectory, "cover.pngx"));
+            }
+            // convert
             String epubFileName = mangaTitle + ".epub";
             File epubFile = new File(outputDirectory, epubFileName);
             EpubCreator epubCreator = new EpubCreator();
             logger.info("Bundling: " + epubFileName);
             epubCreator.create(mangaTitle, mangaDirectory, epubFile);
+            // add cover image
+            cover = new File(mangaDirectory, "cover.pngx");
+            if (cover.exists()) {
+                EpubReader epubReader = new EpubReader();
+                epubFile = new File(outputDirectory, epubFileName);
+                Book book = epubReader.readEpub(new FileInputStream(epubFile));
+                book.setCoverImage(new Resource(new FileInputStream(cover), "cover.png"));
+                EpubWriter epubWriter = new EpubWriter();
+                epubFile = new File(outputDirectory, epubFileName);
+                epubWriter.write(book, new FileOutputStream(epubFile));
+                // rename it back
+                cover.renameTo(new File(mangaDirectory, "cover.png"));
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
