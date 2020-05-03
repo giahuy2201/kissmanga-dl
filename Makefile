@@ -8,7 +8,7 @@ build:
 	mvn package
 	docker build -t=$(IMAGE_PREFIX)/$(IMAGE_NAME):$(TAG) .
 
-run: clean remove build
+run: remove
 	#docker run --name=$(IMAGE_NAME) $(IMAGE_PREFIX)/$(IMAGE_NAME):$(TAG)
 	docker-compose up
 

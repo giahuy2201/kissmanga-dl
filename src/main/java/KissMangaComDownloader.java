@@ -26,21 +26,20 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Note that this only works on the kissmanga.com domain,
- * and not the kissmanga.io domain
- * TODO: Later create abstract class if we want to extend to other kissmanga tlds
- * TODO: maybe experiment with Guice dependency injection
+ * Note that this only works on the kissmanga.com domain, and not the
+ * kissmanga.io domain TODO: Later create abstract class if we want to extend to
+ * other kissmanga tlds TODO: maybe experiment with Guice dependency injection
  * TODO: support merging all pngs to pdf
  */
 public class KissMangaComDownloader implements Closeable, AutoCloseable {
     private WebDriver driver;
     private final Logger logger;
     private final File outputDirectory;
+    private File mangaDirectory; // save each manga to the folder of its name
     private static final String BASE_URL = "http://kissmanga.com";
 
-
     public KissMangaComDownloader() {
-        //disable popups
+        // disable popups
         FirefoxProfile profile = new FirefoxProfile();
         profile.setPreference("dom.popup_maximum", 0);
         profile.setPreference("privacy.popups.showBrowserMessage", false);
@@ -73,7 +72,6 @@ public class KissMangaComDownloader implements Closeable, AutoCloseable {
         return toReturn;
     }
 
-
     /**
      * go to any kissmanga url
      *
@@ -81,9 +79,11 @@ public class KissMangaComDownloader implements Closeable, AutoCloseable {
      */
     private void gotoPage(String url) {
         driver.get(url);
-        //todo more robust way of checking if cloudflare is present, instead of checking if the title contains "manga"
+        // todo more robust way of checking if cloudflare is present, instead of
+        // checking if the title contains "manga"
         logger.info("Waiting for cloudflare protection to be over...");
-        WebDriverWait wait = new WebDriverWait(driver, 8, 50);
+        // wait time: 120s
+        WebDriverWait wait = new WebDriverWait(driver, 120, 50);
         wait.until(ExpectedConditions.titleContains("manga"));
         waitFor(3000);
     }
@@ -122,57 +122,48 @@ public class KissMangaComDownloader implements Closeable, AutoCloseable {
     }
 
     /**
-     * get a better title for the manga chapter by PascalCasing
-     * and replacing whitespace with dashes
-     * i.e. converts:
-     * "Read manga\n" +
-     * "Shingeki no Kyojin\n" +
-     * "Chapter 001\n" +
-     * "online in high quality"
-     * to:
-     * "Shingeki-No-Kyojin-Chapter-001
+     * Get the manga name from page title. Eg. Kimi no Na wa. manga | Read Kimi no
+     * Na wa. manga online in high quanlity -> Kimi-no-Na-wa.
      *
      * @param title
      * @return
      */
     private String stripTitle(String title) {
-        String firstIgnored = "Read manga";
-        String lastIgnored = "online in high quality";
-        title = title.substring(firstIgnored.length() + 1, title.indexOf(lastIgnored)).trim();
-        String[] words = title.split("\\s+");
-        String[] wordsFirstLetterCapitalized = new String[words.length];
-        for (int i = 0; i < words.length; i++) {
-            char[] letters = words[i].toCharArray();
-            if (letters.length > 0) {
-                letters[0] = Character.toUpperCase(letters[0]);
-            }
-            wordsFirstLetterCapitalized[i] = new String(letters);
-        }
-        StringBuilder result = new StringBuilder();
-        for (int i = 0; i < wordsFirstLetterCapitalized.length; i++) {
-            result.append(wordsFirstLetterCapitalized[i]);
-            if (i != wordsFirstLetterCapitalized.length - 1) {
-                result.append('-');
-            }
-        }
-        return result.toString();
+        int cutBefore = title.indexOf(" manga");
+        return title.substring(0, cutBefore).trim().replace(" ", "-");
     }
 
-    public void downloadIndividualMangaChapter(String url) {
+    /**
+     * Format index number into ### for better EPUB bundling. Eg. 1 -> 001
+     * 
+     * @param url
+     * @param index
+     */
+    private String formatIndex(int count) {
+        final int LENGTH = 3;
+        String index = count + "";
+        int countLength = index.length();
+        for (int i = 0; i < LENGTH - countLength; i++) {
+            index = "0" + index;
+        }
+        return index;
+    }
+
+    public void downloadIndividualMangaChapter(String url, int index) {
         gotoPage(url);
         changeToAllPagesMode();
-        String title = stripTitle(driver.getTitle());
         List<String> urlsToDownload = collectMangaImagesUrls();
-        File downloadDirectory = new File(outputDirectory, title);
 
         int count = 0;
         for (String urlString : urlsToDownload) {
             logger.info("Retrieving: " + urlString);
             try {
-                //todo infer correct extension, instead of hardcoding png
-                File outputFileName = new File(downloadDirectory, count + ".png");
+                // todo infer correct extension, instead of hardcoding png
+                String frameFileName = formatIndex(index) + "-" + formatIndex(count) + ".png";
+                File outputFile = new File(mangaDirectory, frameFileName);
                 URL mangaChapterUrl = new URL(urlString);
-                FileUtils.copyURLToFile(mangaChapterUrl, outputFileName);
+                FileUtils.copyURLToFile(mangaChapterUrl, outputFile);
+                // DONT SKIP
             } catch (IOException e) {
                 logger.log(Level.WARNING, "Skipping url: " + urlString, e);
             }
@@ -188,6 +179,10 @@ public class KissMangaComDownloader implements Closeable, AutoCloseable {
      */
     public void downloadAll(String rootMangaPage) {
         gotoPage(rootMangaPage);
+
+        String title = stripTitle(driver.getTitle());
+        mangaDirectory = new File(outputDirectory, title);
+
         String html = driver.getPageSource();
         Document page = Jsoup.parse(html);
         Elements elements = page.select("td a[href]");
@@ -195,17 +190,19 @@ public class KissMangaComDownloader implements Closeable, AutoCloseable {
         for (Element element : elements) {
             mangaChapterUrls.add(BASE_URL + element.attr("href"));
         }
-        Collections.sort(mangaChapterUrls);
-        for (String string : mangaChapterUrls) {
-            logger.info("Downloading manga chapter from: " + string);
-            downloadIndividualMangaChapter(string);
+        Collections.reverse(mangaChapterUrls);
+        int chapterIndex = 1;
+        for (String chapterNumber : mangaChapterUrls) {
+            logger.info("Downloading manga chapter from: " + chapterNumber);
+            downloadIndividualMangaChapter(chapterNumber, chapterIndex);
+            chapterIndex++;
         }
     }
 
     /**
-     * close KissMangaComDownloader when finished downloading
-     * you cannot invoke any other methods on this object afterwards,
-     * and must create a new KissMangaComDownloader object
+     * close KissMangaComDownloader when finished downloading you cannot invoke any
+     * other methods on this object afterwards, and must create a new
+     * KissMangaComDownloader object
      */
     public void close() {
         if (driver != null) {
@@ -222,7 +219,7 @@ public class KissMangaComDownloader implements Closeable, AutoCloseable {
             e.printStackTrace();
         }
 
-        //default to attack on titan
+        // default to attack on titan
         if (args.length < 1) {
             System.err.println("Expected usage: java -jar kissmanga-downloader.jar <url of manga>");
             System.exit(1);
