@@ -13,7 +13,7 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
-
+import pdf.converter.epub.EpubCreator;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -31,11 +31,12 @@ import java.util.logging.Logger;
  * other kissmanga tlds TODO: maybe experiment with Guice dependency injection
  * TODO: support merging all pngs to pdf
  */
-public class KissMangaComDownloader implements Closeable, AutoCloseable {
+public class KissMangaComDownloader implements Closeable {
     private WebDriver driver;
     private final Logger logger;
     private final File outputDirectory;
     private File mangaDirectory; // save each manga to the folder of its name
+    private String mangaTitle;
     private static final String BASE_URL = "http://kissmanga.com";
 
     public KissMangaComDownloader() {
@@ -130,7 +131,7 @@ public class KissMangaComDownloader implements Closeable, AutoCloseable {
      */
     private String stripTitle(String title) {
         int cutBefore = title.indexOf(" manga");
-        return title.substring(0, cutBefore).trim().replace(" ", "-");
+        return title.substring(0, cutBefore).trim().replace(' ', '-').replace('/', '_');
     }
 
     /**
@@ -180,8 +181,8 @@ public class KissMangaComDownloader implements Closeable, AutoCloseable {
     public void downloadAll(String rootMangaPage) {
         gotoPage(rootMangaPage);
 
-        String title = stripTitle(driver.getTitle());
-        mangaDirectory = new File(outputDirectory, title);
+        mangaTitle = stripTitle(driver.getTitle());
+        mangaDirectory = new File(outputDirectory, mangaTitle);
 
         String html = driver.getPageSource();
         Document page = Jsoup.parse(html);
@@ -197,6 +198,22 @@ public class KissMangaComDownloader implements Closeable, AutoCloseable {
             downloadIndividualMangaChapter(chapterNumber, chapterIndex);
             chapterIndex++;
         }
+        convert2epub();
+    }
+
+    /**
+     * Convert all downloaded pngs into a single epub file
+     */
+    private void convert2epub() {
+        try {
+            String epubFileName = mangaTitle + ".epub";
+            File epubFile = new File(outputDirectory, epubFileName);
+            EpubCreator epubCreator = new EpubCreator();
+            logger.info("Bundling: " + epubFileName);
+            epubCreator.create(mangaTitle, mangaDirectory, epubFile);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -206,6 +223,7 @@ public class KissMangaComDownloader implements Closeable, AutoCloseable {
      */
     public void close() {
         if (driver != null) {
+            System.out.println("DONE.");
             driver.quit();
         }
         driver = null;

@@ -4,6 +4,8 @@ export TAG = local
 
 .PHONY: clean run build remove push
 
+go: clean build run
+
 build:
 	mvn package
 	docker build -t=$(IMAGE_PREFIX)/$(IMAGE_NAME):$(TAG) .
