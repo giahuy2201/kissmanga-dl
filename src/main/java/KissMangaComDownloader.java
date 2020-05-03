@@ -37,6 +37,7 @@ public class KissMangaComDownloader implements Closeable {
     private final File outputDirectory;
     private File mangaDirectory; // save each manga to the folder of its name
     private String mangaTitle;
+    private boolean mangaIsCompleted = true;
     private static final String BASE_URL = "http://kissmanga.com";
 
     public KissMangaComDownloader() {
@@ -158,15 +159,34 @@ public class KissMangaComDownloader implements Closeable {
         int count = 0;
         for (String urlString : urlsToDownload) {
             logger.info("Retrieving: " + urlString);
-            try {
-                // todo infer correct extension, instead of hardcoding png
-                String frameFileName = formatIndex(index) + "-" + formatIndex(count) + ".png";
-                File outputFile = new File(mangaDirectory, frameFileName);
-                URL mangaChapterUrl = new URL(urlString);
-                FileUtils.copyURLToFile(mangaChapterUrl, outputFile);
-                // DONT SKIP
-            } catch (IOException e) {
-                logger.log(Level.WARNING, "Skipping url: " + urlString, e);
+            // todo infer correct extension, instead of hardcoding png
+            String frameFileName = formatIndex(index) + "-" + formatIndex(count) + ".png";
+            File outputFile = new File(mangaDirectory, frameFileName);
+            // Keep trying to download the frame for 60s
+            long startTime = System.nanoTime();
+            long endTime = startTime;
+            long failure = 0;
+            boolean frameIsCompleted = false;
+            do {
+                try {
+                    URL mangaChapterUrl = new URL(urlString);
+                    FileUtils.copyURLToFile(mangaChapterUrl, outputFile);
+                    frameIsCompleted = true;
+                    if (failure > 0) {
+                        logger.info("Retrieved successfully!");
+                    }
+                    break;
+                } catch (IOException e) {
+                    failure++;
+                    logger.log(Level.WARNING, "Failed to retrieve: " + urlString, e);
+                    logger.info("Trying a " + (failure + 1) + " times ...");
+                }
+                endTime = System.nanoTime();
+            } while (endTime - startTime <= 60 * (long) 1000000000);
+            // Has it get the frame eventually
+            if (!frameIsCompleted && mangaIsCompleted) {
+                mangaIsCompleted = false;
+                logger.severe("Cannot bundle " + mangaTitle);
             }
             count++;
         }
@@ -198,7 +218,9 @@ public class KissMangaComDownloader implements Closeable {
             downloadIndividualMangaChapter(chapterNumber, chapterIndex);
             chapterIndex++;
         }
-        convert2epub();
+        if (mangaIsCompleted) {
+            convert2epub();
+        }
     }
 
     /**
