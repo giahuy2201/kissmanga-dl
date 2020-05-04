@@ -1,0 +1,11 @@
+<?xml  version="1.0"?>
+<manga>
+    <!-- Rename title, cover, lang as you want -->
+    <title>$TITLE</title>
+    <cover>$COVER</cover>
+    <lang>$LANG</lang>
+    <authors>
+        <author>$AUTHOR</author>
+        <!-- Add more authors if there are -->
+    </authors>
+</manga>
