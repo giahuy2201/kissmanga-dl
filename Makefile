@@ -1,4 +1,4 @@
-export IMAGE_PREFIX = bmzhao
+export IMAGE_PREFIX = giahuy2201
 export IMAGE_NAME = kissmanga-downloader
 export TAG = local
 

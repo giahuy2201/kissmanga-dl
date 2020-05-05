@@ -1,7 +1,7 @@
 version: "2"
 services:
   downloader:
-    image: "bmzhao/kissmanga-downloader:local"
+    image: "giahuy2201/kissmanga-downloader:local"
     depends_on:
       - selenium
     environment:
@@ -13,14 +13,11 @@ services:
       - java
       - -jar
       - /kissmanga-downloader.jar
-      - https://kissmanga.com/Manga/Kimi-no-Na-wa
+      - https://kissmanga.com/Manga/Kanojo-to-Kanojo-no-Neko
   selenium:
     image: "selenium/standalone-firefox-debug"
     ports:
       - "5900:5900"
     environment:
-      - USE_SELENIUM=3
-      - TZ=US/Pacific
-      - VNC_PASSWORD=secret
-    shm_size: 1g
-#template-example: https://github.com/elgalu/docker-selenium/blob/master/docker-compose.yml
+      - VNC_NO_PASSWORD=1
+    shm_size: 2g

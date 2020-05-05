@@ -70,7 +70,6 @@ public class EpubCreator {
         // Set cover image
         book.setCoverImage(new Resource(new FileInputStream(new File(mangaDirectory, cover)), "cover.png"));
         // Add css file
-        book.addResource(new Resource(resourceLoader.getResourceAsStream("page_styles.css"), "page_styles.css"));
         book.addResource(new Resource(resourceLoader.getResourceAsStream("stylesheet.css"), "stylesheet.css"));
         // Add images
         List<List<File>> chapterList = listImages(cover);
@@ -115,9 +114,8 @@ public class EpubCreator {
     public String buildChapter(List<File> imageList) {
         StringBuilder content = new StringBuilder();
         for (File image : imageList) {
-            content.append(String.format(
-                    "<p class=\"pdf-converter1\"><a id=\"%s\"></a><img src=\"images/%s\" class=\"pdf-converter2\"/></p>\n",
-                    "id" + image.getName().replace(".png", ""), image.getName()));
+            content.append(String.format("<p class=\"image-wrapper\"><img src=\"images/%s\" class=\"image\"/></p>\n",
+                    image.getName()));
         }
         try {
             String baseHTML = IOUtils.toString(resourceLoader.getResourceAsStream("chapter.html"), "UTF-8");

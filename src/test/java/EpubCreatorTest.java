@@ -58,7 +58,8 @@ public class EpubCreatorTest {
             book.setCoverImage(new Resource(new FileInputStream(img + "cover.png"), "cover.png"));
 
             // Add css file
-            book.addResource(new Resource(new FileInputStream(pre + "page_styles.css"), "page_styles.css"));
+            // book.addResource(new Resource(new FileInputStream(pre + "page_styles.css"),
+            // "page_styles.css"));
             book.addResource(new Resource(new FileInputStream(pre + "stylesheet.css"), "stylesheet.css"));
             // Add images
             for (int i = 2; i <= 14; i++) {
@@ -100,12 +101,15 @@ public class EpubCreatorTest {
         return null;
     }
 
-    @Test
+    // @Test
     public void testEpubCreator() {
+        boolean allDone = true;
         File outputDirectory = new File("output/");
         // Bundle all manga folder found
         for (File folder : outputDirectory.listFiles()) {
+            System.out.println("- " + folder);
             if (folder.isDirectory()) {
+                System.out.println(folder);
                 String title = folder.getName();
                 File mangaDirectory = new File(outputDirectory, title);
                 try {
@@ -114,8 +118,11 @@ public class EpubCreatorTest {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                assumeTrue(new File(outputDirectory, title + ".epub").exists());
+                if (!new File(outputDirectory, title + ".epub").exists()) {
+                    allDone = false;
+                }
             }
         }
+        assumeTrue(allDone);
     }
 }

@@ -39,3 +39,10 @@ buildNumber.properties
 .idea/
 *.iml
 output/
+target/
+
+# 
+.vscode/
+.settings/
+.project
+.classpath

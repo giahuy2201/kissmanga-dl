@@ -1,15 +1,18 @@
-.pdf-converter {
-    display: block;
-    font-size: 1em;
-    padding-left: 0;
-    padding-right: 0;
-    margin: 0 5pt
-    }
-.pdf-converter1 {
-    display: block;
-    margin: 1em 0
-    }
-.pdf-converter2 {
-    height: auto;
-    width: auto
-    }
+.chapter {
+  display: block;
+  font-size: 1em;
+  padding-left: 0;
+  padding-right: 0;
+  margin: 0;
+}
+.image-wrapper {
+  display: block;
+  margin: 1em 0;
+}
+.image {
+  height: auto;
+  width: auto;
+}
+@page {
+  margin: 5pt 0;
+}

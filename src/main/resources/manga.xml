@@ -1,7 +1,8 @@
 <?xml  version="1.0"?>
 <manga>
-    <!-- Rename title, cover, lang as you want -->
+    <!-- Correct title -->
     <title>$TITLE</title>
+    <!-- You can rename a png file to cover.png to make it cover image as well -->
     <cover>$COVER</cover>
     <lang>$LANG</lang>
     <authors>

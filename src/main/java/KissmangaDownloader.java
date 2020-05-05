@@ -32,11 +32,9 @@ import java.util.logging.SimpleFormatter;
 
 /**
  * Note that this only works on the kissmanga.com domain, and not the
- * kissmanga.io domain TODO: Later create abstract class if we want to extend to
- * other kissmanga tlds TODO: maybe experiment with Guice dependency injection
- * TODO: support merging all pngs to pdf
+ * kissmanga.io domain
  */
-public class KissMangaComDownloader implements Closeable {
+public class KissmangaDownloader implements Closeable {
     private WebDriver driver;
     private final Logger logger;
     private final File outputDirectory;
@@ -45,14 +43,14 @@ public class KissMangaComDownloader implements Closeable {
     private boolean mangaIsCompleted = true;
     private static final String BASE_URL = "http://kissmanga.com";
 
-    public KissMangaComDownloader() {
+    public KissmangaDownloader() {
         // disable popups
         FirefoxProfile profile = new FirefoxProfile();
         profile.setPreference("dom.popup_maximum", 0);
         profile.setPreference("privacy.popups.showBrowserMessage", false);
         profile.setPreference("dom.disable_beforeunload", true);
 
-        logger = Logger.getLogger(KissMangaComDownloader.class.getName());
+        logger = Logger.getLogger(getClass().getName());
         outputDirectory = new File("output/");
 
         URL webdriverUrl = null;
@@ -225,7 +223,7 @@ public class KissMangaComDownloader implements Closeable {
         Document page = Jsoup.parse(html);
         // Get first author
         Element authorNode = page.select("a[href^='/AuthorArtist']").first();
-        String mangaAuthor = authorNode.text();
+        String mangaAuthor = authorNode.text().trim();
         // Create manga.xml
         exportProfile(mangaTitle, mangaAuthor);
         // Get chapters
@@ -278,9 +276,9 @@ public class KissMangaComDownloader implements Closeable {
     }
 
     /**
-     * close KissMangaComDownloader when finished downloading you cannot invoke any
+     * close KissMangaDownloader when finished downloading you cannot invoke any
      * other methods on this object afterwards, and must create a new
-     * KissMangaComDownloader object
+     * KissMangaDownloader object
      */
     public void close() {
         if (driver != null) {
@@ -304,7 +302,7 @@ public class KissMangaComDownloader implements Closeable {
             System.exit(1);
         }
 
-        try (KissMangaComDownloader downloader = new KissMangaComDownloader()) {
+        try (KissmangaDownloader downloader = new KissmangaDownloader()) {
             for (String url : args) {
                 downloader.downloadAll(url);
             }
