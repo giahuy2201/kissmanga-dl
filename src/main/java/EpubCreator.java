@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Logger;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -22,15 +23,22 @@ import nl.siegmann.epublib.domain.Book;
 import nl.siegmann.epublib.domain.Resource;
 import nl.siegmann.epublib.epub.EpubWriter;
 
+/**
+ * Class to create EPUB file from PNGs
+ */
+
 public class EpubCreator {
     // manga folder contains file manga.xml and images files
     private File mangaDirectory;
     private File outputDirectory;
+    private Logger logger;
     private Document mangaProfile;
     private ClassLoader resourceLoader;
 
-    public EpubCreator() {
+    public EpubCreator(File outputDirectory, Logger logger) {
         resourceLoader = getClass().getClassLoader();
+        this.outputDirectory = outputDirectory;
+        this.logger = logger;
     }
 
     /**
@@ -41,9 +49,12 @@ public class EpubCreator {
      * @param outputDirectory directory to store epub file
      * @throws IOException
      */
-    public void create(File mangaDirectory, File outputDirectory) throws IOException {
+    public void create(File mangaDirectory) throws IOException {
+        // validate directory
+        if (!new File(mangaDirectory, "manga.xml").exists()) {
+            return;
+        }
         this.mangaDirectory = mangaDirectory;
-        this.outputDirectory = outputDirectory;
         // read manga profile
         importProfile();
         String title = mangaProfile.getElementsByTagName("title").item(0).getTextContent();
@@ -75,12 +86,14 @@ public class EpubCreator {
         List<List<File>> chapterList = listImages(cover);
         for (List<File> chapter : chapterList) {
             for (File image : chapter) {
+                logger.info(image.getAbsolutePath());
                 book.addResource(new Resource(new FileInputStream(image), "images/" + image.getName()));
             }
         }
         // Add chapters
         for (int index = 0; index < chapterList.size(); index++) {
             String chapterName = "Chapter " + (index + 1);
+            logger.info("Adding " + chapterName);
             InputStream chapterHTML = toInputStream(buildChapter(chapterList.get(index)));
             book.addSection(chapterName, new Resource(chapterHTML, chapterName + ".html"));
         }
@@ -88,14 +101,30 @@ public class EpubCreator {
         EpubWriter epubWriter = new EpubWriter();
 
         // Write the Book as Epub
+        logger.info("Writing to file " + title + ".epub");
         epubWriter.write(book, new FileOutputStream(new File(outputDirectory, title + ".epub")));
+        logger.info("Packing finished");
+    }
+
+    public String getTitle(File mangaDirectory) {
+        // validate directory
+        if (!new File(mangaDirectory, "manga.xml").exists()) {
+            return null;
+        }
+        this.mangaDirectory = mangaDirectory;
+        importProfile();
+        return mangaProfile.getElementsByTagName("title").item(0).getTextContent();
     }
 
     /**
      * Read manga.xml and parse XML document
      */
-    public void importProfile() {
+    private void importProfile() {
+        if (mangaProfile != null) {
+            return;
+        }
         try {
+            logger.info("Importing metadata from " + mangaDirectory + "/manga.xml");
             File mangaFile = new File(mangaDirectory, "manga.xml");
             DocumentBuilder xmlBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
             mangaProfile = xmlBuilder.parse(mangaFile);

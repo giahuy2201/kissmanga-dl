@@ -8,6 +8,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.logging.Logger;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.Test;
@@ -113,8 +114,8 @@ public class EpubCreatorTest {
                 String title = folder.getName();
                 File mangaDirectory = new File(outputDirectory, title);
                 try {
-                    EpubCreator epubCreator = new EpubCreator();
-                    epubCreator.create(mangaDirectory, outputDirectory);
+                    EpubCreator epubCreator = new EpubCreator(outputDirectory, Logger.getLogger(getClass().getName()));
+                    epubCreator.create(mangaDirectory);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

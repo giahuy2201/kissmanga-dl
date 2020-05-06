@@ -10,13 +10,12 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.firefox.FirefoxProfile;
-import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -25,16 +24,13 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 
 /**
- * Note that this only works on the kissmanga.com domain, and not the
- * kissmanga.io domain
+ * Downloader class to work with Selenium container
  */
-public class KissmangaDownloader implements Closeable {
+public class KissmangaDownloader {
     private WebDriver driver;
     private final Logger logger;
     private final File outputDirectory;
@@ -43,28 +39,28 @@ public class KissmangaDownloader implements Closeable {
     private boolean mangaIsCompleted = true;
     private static final String BASE_URL = "http://kissmanga.com";
 
-    public KissmangaDownloader() {
+    public KissmangaDownloader(File outputDirectory, Logger logger, String port) {
         // disable popups
         FirefoxProfile profile = new FirefoxProfile();
         profile.setPreference("dom.popup_maximum", 0);
         profile.setPreference("privacy.popups.showBrowserMessage", false);
         profile.setPreference("dom.disable_beforeunload", true);
 
-        logger = Logger.getLogger(getClass().getName());
-        outputDirectory = new File("output/");
+        this.logger = logger;
+        this.outputDirectory = outputDirectory;
 
         URL webdriverUrl = null;
         String seleniumHost = envOrDefault("SELENIUM_HOST", "localhost");
-        String seleniumPort = envOrDefault("SELENIUM_PORT", "4444");
+        String seleniumPort = envOrDefault("SELENIUM_PORT", port);
 
         try {
             webdriverUrl = new URL("http://" + seleniumHost + ":" + seleniumPort + "/wd/hub");
         } catch (MalformedURLException e) {
             logger.log(Level.WARNING, "Failed to parse URL", e);
-            System.exit(1);
+            // System.exit(1);
         }
 
-        DesiredCapabilities capabilities = DesiredCapabilities.firefox();
+        FirefoxOptions capabilities = new FirefoxOptions();
         capabilities.setCapability(FirefoxDriver.PROFILE, profile);
         driver = new RemoteWebDriver(webdriverUrl, capabilities);
     }
@@ -83,14 +79,16 @@ public class KissmangaDownloader implements Closeable {
      * @param url
      */
     private void gotoPage(String url) {
-        driver.get(url);
-        // todo more robust way of checking if cloudflare is present, instead of
-        // checking if the title contains "manga"
-        logger.info("Waiting for cloudflare protection to be over...");
-        // wait time: 120s
-        WebDriverWait wait = new WebDriverWait(driver, 120, 50);
-        wait.until(ExpectedConditions.titleContains("manga"));
-        waitFor(3000);
+        if (!driver.getCurrentUrl().equals(url)) {
+            driver.get(url);
+            // todo more robust way of checking if cloudflare is present, instead of
+            // checking if the title contains "manga"
+            logger.info("Waiting for cloudflare protection to be over...");
+            // wait time: 120s
+            WebDriverWait wait = new WebDriverWait(driver, 120, 50);
+            wait.until(ExpectedConditions.titleContains("manga"));
+            waitFor(3000);
+        }
     }
 
     private void waitFor(long millis) {
@@ -185,7 +183,7 @@ public class KissmangaDownloader implements Closeable {
                     break;
                 } catch (IOException e) {
                     failure++;
-                    logger.log(Level.WARNING, "Failed to retrieve: " + urlString, e);
+                    logger.log(Level.WARNING, "Failed to retrieve: " + urlString);
                     logger.info("Trying a " + (failure + 1) + " times ...");
                 }
                 endTime = System.nanoTime();
@@ -205,20 +203,12 @@ public class KissmangaDownloader implements Closeable {
      *
      * @param rootMangaPage
      */
-    public void downloadAll(String rootMangaPage) {
+    public File download(String rootMangaPage) {
         gotoPage(rootMangaPage);
         mangaTitle = stripTitle(driver.getTitle());
         mangaDirectory = new File(outputDirectory, mangaTitle);
         mangaDirectory.mkdir();
-        // Save logs to files
-        try {
-            FileHandler logFileHandler = new FileHandler(outputDirectory.getPath() + "/" + mangaTitle + ".log");
-            logFileHandler.setFormatter(new SimpleFormatter());
-            logger.addHandler(logFileHandler);
 
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
         String html = driver.getPageSource();
         Document page = Jsoup.parse(html);
         // Get first author
@@ -239,10 +229,13 @@ public class KissmangaDownloader implements Closeable {
             downloadIndividualMangaChapter(chapterNumber, chapterIndex);
             chapterIndex++;
         }
-        if (mangaIsCompleted) {
-            logger.info("Packing: " + mangaTitle + ".epub ...");
-            convert2epub();
-        }
+        logger.info("Downloading finished");
+        return mangaDirectory;
+    }
+
+    protected String getTitle(String url) {
+        gotoPage(url);
+        return stripTitle(driver.getTitle());
     }
 
     /**
@@ -259,53 +252,8 @@ public class KissmangaDownloader implements Closeable {
             printWriter.write(baseXML);
             printWriter.close();
         } catch (IOException e) {
+            logger.log(Level.SEVERE, "Failed to create manga.xml file", e);
             e.printStackTrace();
-        }
-    }
-
-    /**
-     * Convert all downloaded pngs into a single epub file
-     */
-    private void convert2epub() {
-        try {
-            EpubCreator epubCreator = new EpubCreator();
-            epubCreator.create(mangaDirectory, outputDirectory);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * close KissMangaDownloader when finished downloading you cannot invoke any
-     * other methods on this object afterwards, and must create a new
-     * KissMangaDownloader object
-     */
-    public void close() {
-        if (driver != null) {
-            System.out.println("DONE.");
-            driver.quit();
-        }
-        driver = null;
-    }
-
-    public static void main(String[] args) {
-        System.out.println("Waiting for selenium container to start up...");
-        try {
-            Thread.sleep(5000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        // default to attack on titan
-        if (args.length < 1) {
-            System.err.println("Expected usage: java -jar kissmanga-downloader.jar <url of manga>");
-            System.exit(1);
-        }
-
-        try (KissmangaDownloader downloader = new KissmangaDownloader()) {
-            for (String url : args) {
-                downloader.downloadAll(url);
-            }
         }
     }
 }

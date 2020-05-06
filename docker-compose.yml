@@ -1,19 +1,22 @@
 version: "2"
 services:
   downloader:
-    image: "giahuy2201/kissmanga-downloader:local"
+    image: "giahuy2201/kissmanga-dl"
     depends_on:
       - selenium
     environment:
       - SELENIUM_HOST=selenium
       - SELENIUM_PORT=4444
     volumes:
-      - ./output:/output
+      - ./output:/project
+    working_dir: /project
     entrypoint:
       - java
       - -jar
-      - /kissmanga-downloader.jar
-      - https://kissmanga.com/Manga/Kanojo-to-Kanojo-no-Neko
+      - ../kissmanga-dl.jar
+      - -v
+      - $LINK
+
   selenium:
     image: "selenium/standalone-firefox-debug"
     ports:
