@@ -1,3 +1,5 @@
+
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -11,8 +13,10 @@ import java.util.logging.SimpleFormatter;
 
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerClient;
+import com.spotify.docker.client.ProgressHandler;
 import com.spotify.docker.client.exceptions.DockerCertificateException;
 import com.spotify.docker.client.exceptions.DockerException;
+import com.spotify.docker.client.exceptions.ImageNotFoundException;
 import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
 import com.spotify.docker.client.messages.HostConfig;
@@ -25,12 +29,14 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.WebDriverException;
 
 /**
  * Main class controlling CLI and branching
  */
 
-public class kissmanga_dl {
+public class kissmanga_dl implements Closeable {
     protected DockerClient docker;
     protected String seleniumID;
     protected CommandLine command;
@@ -42,74 +48,74 @@ public class kissmanga_dl {
 
     public static void main(String[] args) {
 
-        try {
-            // start kissmanga cli
-            kissmanga_dl cli = new kissmanga_dl(args);
-            File currentDirectory = new File("./");
-            // options
-            if (cli.command.hasOption("help")) {
-                HelpFormatter helpFormatter = new HelpFormatter();
-                helpFormatter.printHelp("kissmanga-dl [options] URL [URL...]", "\nwhere options include:",
-                        cli.cliOptions, "Neither -d nor -p options passed, packing will follow downloading.");
-                System.exit(0);
-            }
-            // logging on
-            if (cli.command.hasOption("l")) {
-                cli.setLogger(true);
-            }
-            // verbose on
-            if (cli.command.hasOption("v")) {
-                cli.setVerbose(true);
-            }
-            // if there are links
-            if (cli.command.getArgs().length > 0) {
-                String[] urls = cli.command.getArgs();
-                // check url
-                if (!fromKissmanga(urls[0])) {
-                    printUsage("Unsupported URL.");
+        try (kissmanga_dl cli = new kissmanga_dl(args)) {
+            try {
+                // start kissmanga cli
+                ;
+                File currentDirectory = new File("./");
+                // options
+                if (cli.command.hasOption("help")) {
+                    HelpFormatter helpFormatter = new HelpFormatter();
+                    helpFormatter.printHelp("kissmanga-dl [options] URL [URL...]", "\nwhere options include:",
+                            cli.cliOptions, "Neither -d nor -p options passed, packing will follow downloading");
+                    System.exit(0);
                 }
-                // download
-                if (cli.command.hasOption("d")) {
-                    String port = cli.startSelenium();
-                    // wait for seleninum docker starting
-                    Thread.sleep(5000);
-                    // download only
-                    cli.downloadAll(urls, currentDirectory, port);
-                } else if (cli.isDefaultOption()) {
-                    String port = cli.startSelenium();
-                    // wait for seleninum docker starting
-                    Thread.sleep(5000);
-                    // by default download and pack
-                    cli.downloadAllPack(urls, currentDirectory, port);
+                // logging on
+                if (cli.command.hasOption("l")) {
+                    cli.setLogger(true);
+                }
+                // verbose on
+                if (cli.command.hasOption("v")) {
+                    cli.setVerbose(true);
+                }
+                // if there are links
+                if (cli.command.getArgs().length > 0) {
+                    String[] urls = cli.command.getArgs();
+                    // check url
+                    if (!fromKissmanga(urls[0])) {
+                        printUsage("Unsupported URL");
+                    }
+                    // download
+                    if (cli.command.hasOption("d")) {
+                        String port = cli.startSelenium();
+                        // wait for seleninum docker starting
+                        Thread.sleep(5000);
+                        // download only
+                        cli.downloadAll(urls, currentDirectory, port);
+                    } else if (cli.isDefaultOption()) {
+                        String port = cli.startSelenium();
+                        // wait for seleninum docker starting
+                        Thread.sleep(5000);
+                        // by default download and pack
+                        cli.downloadAllPack(urls, currentDirectory, port);
+                    } else {
+                        // unwanted syntax: -p URL
+                        printUsage("Unwanted syntax");
+                    }
                 } else {
-                    // unwanted syntax: -p URL
-                    printUsage("Unwanted syntax.");
+                    if (cli.command.hasOption('p')) {
+                        // pack all manga
+                        cli.packAll(currentDirectory);
+                    } else {
+                        printUsage("You must provide at least one URL");
+                    }
                 }
-            } else {
-                if (cli.command.hasOption('p')) {
-                    // pack all manga
-                    cli.packAll(currentDirectory);
-                } else {
-                    printUsage("You must provide at least one URL.");
-                }
-            }
 
-            // stop & remove created container
-            if (cli.seleniumID != null) {
-                cli.logger.info("Closing Selenium container ...");
-                cli.docker.killContainer(cli.seleniumID);
-                cli.docker.removeContainer(cli.seleniumID);
+            } catch (DockerException e) {
+                System.out.println("Problem starting Selenium container. Restart Docker or check your installation");
+            } catch (IOException e) {
+                System.out.println("ERROR: Invalid URL");
+            } catch (TimeoutException e) {
+                System.out.println("ERROR: Problem retrieving pages. Try again in a moment");
+            } catch (WebDriverException e) {
+                System.out.println("ERROR: Problem connecting to Selenium container. Try again in a moment");
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        } catch (DockerException e) {
-            System.out.println("Problem starting Selenium container. Restart Docker or check your installation.");
-        } catch (ParseException e) {
-            printUsage("Invalid option(s).");
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
-    kissmanga_dl(String[] args) throws ParseException {
+    kissmanga_dl(String[] args) {
         // Create optionsgetCommand
         cliOptions = new Options();
         Option downloadOption = Option.builder("d").desc("Download manga in PNG format").build();
@@ -124,11 +130,15 @@ public class kissmanga_dl {
         cliOptions.addOption(helpOption);
         // Parse command
         CommandLineParser cliParser = new DefaultParser();
-        command = cliParser.parse(cliOptions, args);
+        try {
+            command = cliParser.parse(cliOptions, args);
+        } catch (ParseException e) {
+            printUsage("Invalid option(s).");
+        }
         // Create logger, logger doesnt print on screen by default
         logger = Logger.getLogger(getClass().getName());
-        logger.setUseParentHandlers(false);
-
+        setLogger(false);
+        setVerbose(false);
     }
 
     /**
@@ -151,10 +161,21 @@ public class kissmanga_dl {
         docker = DefaultDockerClient.fromEnv().build();
         // shm-size & image
         final long SHM_SIZE = 2 * 1024 * 1024 * (long) 1024;
-        final String SELENIUM_IMAGE = "selenium/standalone-firefox-debug:latest";
+        final String SELENIUM_IMAGE = "selenium/standalone-firefox:latest";
 
         // Pull an image
-        docker.pull(SELENIUM_IMAGE);
+        if (verboseIsOn) {
+            docker.pull(SELENIUM_IMAGE);
+        } else {
+            try {
+                docker.inspectImage(SELENIUM_IMAGE);
+            } catch (ImageNotFoundException e) {
+                System.out.println("Downloading Selenium image ...");
+            }
+            ProgressHandler silentHandler = message -> {
+            };
+            docker.pull(SELENIUM_IMAGE, silentHandler);
+        }
 
         // Bind container port 4444 to port 4444 in host
         final Map<String, List<PortBinding>> portBindings = new HashMap<>();
@@ -170,8 +191,13 @@ public class kissmanga_dl {
                 .build();
         final ContainerCreation creation = docker.createContainer(containerConfig);
         seleniumID = creation.id();
+
         // Start container
-        docker.startContainer(seleniumID);
+        if (verboseIsOn) {
+            docker.startContainer(seleniumID);
+        } else {
+            docker.restartContainer(seleniumID);
+        }
 
         return port;
     }
@@ -207,15 +233,16 @@ public class kissmanga_dl {
      * @throws IOException
      */
     public void downloadAllPack(String[] urls, File outputDirectory, String port) throws IOException {
-        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, port);
+        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, port, verboseIsOn);
         for (String url : urls) {
             if (!fromKissmanga(url)) {
                 continue;
             }
+            String name = downloader.getTitle(url);
             if (logFileIsOn) {
-                String name = downloader.getTitle(url);
                 addLogFile(outputDirectory, name);
             }
+            System.out.println("Downloading " + name);
             File mangaDirectory = downloader.download(url);
             pack(mangaDirectory, outputDirectory, true);
         }
@@ -227,17 +254,19 @@ public class kissmanga_dl {
      * @param urls
      * @param outputDirectory
      * @param port
+     * @throws IOException
      */
-    public void downloadAll(String[] urls, File outputDirectory, String port) {
-        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, port);
+    public void downloadAll(String[] urls, File outputDirectory, String port) throws IOException {
+        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, port, verboseIsOn);
         for (String url : urls) {
             if (!fromKissmanga(url)) {
                 continue;
             }
+            String name = downloader.getTitle(url);
             if (logFileIsOn) {
-                String name = downloader.getTitle(url);
                 addLogFile(outputDirectory, name);
             }
+            System.out.println("Downloading " + name);
             downloader.download(url);
         }
     }
@@ -268,15 +297,14 @@ public class kissmanga_dl {
     public void pack(File mangaDirectory, File outputDirectory, boolean sameLogFile) throws IOException {
         EpubCreator creator = new EpubCreator(outputDirectory, logger);
         if (mangaDirectory.isDirectory()) {
-            if (logFileIsOn) {
-                String name = creator.getTitle(mangaDirectory);
-                if (name == null) {
-                    return;
-                }
-                if (!sameLogFile) {
-                    addLogFile(outputDirectory, name);
-                }
+            String name = creator.getTitle(mangaDirectory);
+            if (name == null) {
+                return;
             }
+            if (logFileIsOn && !sameLogFile) {
+                addLogFile(outputDirectory, name);
+            }
+            System.out.println("Bundling " + name);
             creator.create(mangaDirectory);
         }
     }
@@ -287,9 +315,7 @@ public class kissmanga_dl {
 
     public void setVerbose(boolean on) {
         verboseIsOn = on;
-        if (on) {
-            logger.setUseParentHandlers(true);
-        }
+        logger.setUseParentHandlers(on);
     }
 
     /**
@@ -336,5 +362,19 @@ public class kissmanga_dl {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public void close() {
+        // stop & remove created container
+        if (seleniumID != null) {
+            logger.info("Closing Selenium container ...");
+            try {
+                docker.killContainer(seleniumID);
+                docker.removeContainer(seleniumID);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

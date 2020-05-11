@@ -18,9 +18,6 @@ services:
       - $LINK
 
   selenium:
-    image: "selenium/standalone-firefox-debug"
-    ports:
-      - "5900:5900"
-    environment:
-      - VNC_NO_PASSWORD=1
-    shm_size: 2g
+    image: "selenium/standalone-firefox"
+    volumes:
+      - /dev/shm:/dev/shm

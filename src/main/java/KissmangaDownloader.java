@@ -16,6 +16,9 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
+
+import me.tongfei.progressbar.ProgressBar;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -37,14 +40,20 @@ public class KissmangaDownloader {
     private File mangaDirectory; // save each manga to the folder of its name
     private String mangaTitle;
     private boolean mangaIsCompleted = true;
+    private boolean verboseIsOn;
     private static final String BASE_URL = "http://kissmanga.com";
 
-    public KissmangaDownloader(File outputDirectory, Logger logger, String port) {
+    public KissmangaDownloader(File outputDirectory, Logger logger, String port, boolean verboseIsOn) {
         // disable popups
         FirefoxProfile profile = new FirefoxProfile();
         profile.setPreference("dom.popup_maximum", 0);
         profile.setPreference("privacy.popups.showBrowserMessage", false);
         profile.setPreference("dom.disable_beforeunload", true);
+
+        this.verboseIsOn = verboseIsOn;
+        if (!verboseIsOn) {
+            Logger.getLogger("org.openqa.selenium").setLevel(Level.OFF);
+        }
 
         this.logger = logger;
         this.outputDirectory = outputDirectory;
@@ -81,12 +90,9 @@ public class KissmangaDownloader {
     private void gotoPage(String url) {
         if (!driver.getCurrentUrl().equals(url)) {
             driver.get(url);
-            // todo more robust way of checking if cloudflare is present, instead of
-            // checking if the title contains "manga"
             logger.info("Waiting for cloudflare protection to be over...");
-            // wait time: 120s
-            WebDriverWait wait = new WebDriverWait(driver, 120, 50);
-            wait.until(ExpectedConditions.titleContains("manga"));
+            WebDriverWait wait = new WebDriverWait(driver, 8, 50);
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.id("headnav")));
             waitFor(3000);
         }
     }
@@ -130,8 +136,12 @@ public class KissmangaDownloader {
      *
      * @param title
      * @return
+     * @throws Exception
      */
-    private String stripTitle(String title) {
+    private String stripTitle(String title) throws IOException {
+        if (title.contentEquals("Error!")) {
+            throw new IOException("Manga not found!");
+        }
         int cutBefore = title.indexOf(" manga");
         // Remove unwanted /
         String safeTitle = title.substring(0, cutBefore).trim().replace(' ', '-').replace('/', '-');
@@ -160,9 +170,13 @@ public class KissmangaDownloader {
         gotoPage(url);
         changeToAllPagesMode();
         List<String> urlsToDownload = collectMangaImagesUrls();
+        Iterable<String> urlList = urlsToDownload;
+        if (!verboseIsOn) {
+            urlList = ProgressBar.wrap(urlsToDownload, "Chapter " + index);
+        }
 
         int count = 0;
-        for (String urlString : urlsToDownload) {
+        for (String urlString : urlList) {
             logger.info("Retrieving: " + urlString);
             // todo infer correct extension, instead of hardcoding png
             String frameFileName = formatIndex(index) + "-" + formatIndex(count) + ".png";
@@ -203,7 +217,7 @@ public class KissmangaDownloader {
      *
      * @param rootMangaPage
      */
-    public File download(String rootMangaPage) {
+    public File download(String rootMangaPage) throws IOException {
         gotoPage(rootMangaPage);
         mangaTitle = stripTitle(driver.getTitle());
         mangaDirectory = new File(outputDirectory, mangaTitle);
@@ -233,7 +247,7 @@ public class KissmangaDownloader {
         return mangaDirectory;
     }
 
-    protected String getTitle(String url) {
+    protected String getTitle(String url) throws IOException {
         gotoPage(url);
         return stripTitle(driver.getTitle());
     }

@@ -66,6 +66,8 @@ kissmanga-dl -pl
 
 will pack all found manga in current directory and generate log files.
 
+_Note: You should add `sudo` before `kissmanga-dl` when running on Linux._
+
 Each manga is downloaded as a separate directory under their names and their **EPUB** files will be located at your current working directory.
 
 For those who install _kissmanga-dl_ on Mac/Linux, the CLI offers you options to download and pack files seperately as well as generate log files. That is if you would like a bit more customization over your **EPUB** files, you can download the manga first, then edit the `manga.xml` file in each manga folder, and pack them into **EPUB** files when you are ready.
