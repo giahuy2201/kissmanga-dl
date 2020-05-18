@@ -20,11 +20,13 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import me.tongfei.progressbar.ProgressBar;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
@@ -237,11 +239,18 @@ public class KissmangaDownloader {
             mangaChapterUrls.add(BASE_URL + element.attr("href"));
         }
         Collections.reverse(mangaChapterUrls);
-        int chapterIndex = 1;
+        // Resume
+        int chapterIndexStart = getLastestDownloadedChapter();
+        if (chapterIndexStart == 0) {
+            chapterIndexStart = 1;
+        } else {
+            System.out.println("Resuming at chapter " + chapterIndexStart);
+        }
+        mangaChapterUrls = mangaChapterUrls.subList(chapterIndexStart - 1, mangaChapterUrls.size());
         for (String chapterNumber : mangaChapterUrls) {
             logger.info("Downloading manga chapter from: " + chapterNumber);
-            downloadIndividualMangaChapter(chapterNumber, chapterIndex);
-            chapterIndex++;
+            downloadIndividualMangaChapter(chapterNumber, chapterIndexStart);
+            chapterIndexStart++;
         }
         logger.info("Downloading finished");
         return mangaDirectory;
@@ -269,5 +278,22 @@ public class KissmangaDownloader {
             logger.log(Level.SEVERE, "Failed to create manga.xml file", e);
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Find the latest chapter number to resume
+     */
+    private int getLastestDownloadedChapter() {
+        File[] mangaFrames = mangaDirectory.listFiles(new FileFilter() {
+            @Override
+            public boolean accept(File pathname) {
+                return pathname.getName().matches("\\d{3}-\\d{3}.png$");
+            }
+        });
+        if (mangaFrames == null || mangaFrames.length == 0) {
+            return 0;
+        }
+        File latestFile = Collections.max(Arrays.asList(mangaFrames));
+        return Integer.parseInt(latestFile.getName().substring(0, 3));
     }
 }
