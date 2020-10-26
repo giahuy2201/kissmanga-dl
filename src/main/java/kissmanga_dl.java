@@ -101,14 +101,14 @@ public class kissmanga_dl implements Closeable {
                     }
                 }
 
-            } catch (DockerException e) {
-                System.out.println("Problem starting Selenium container. Restart Docker or check your installation");
-            } catch (IOException e) {
-                System.out.println("ERROR: Invalid URL");
-            } catch (TimeoutException e) {
-                System.out.println("ERROR: Problem retrieving pages. Try again in a moment");
-            } catch (WebDriverException e) {
-                System.out.println("ERROR: Problem connecting to Selenium container. Try again in a moment");
+            // } catch (DockerException e) {
+            //     System.out.println("Problem starting Selenium container. Restart Docker or check your installation");
+            // } catch (IOException e) {
+            //     System.out.println("ERROR: Invalid URL");
+            // } catch (TimeoutException e) {
+            //     System.out.println("ERROR: Problem retrieving pages. Try again in a moment");
+            // } catch (WebDriverException e) {
+            //     System.out.println("ERROR: Problem connecting to Selenium container. Try again in a moment");
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -209,7 +209,7 @@ public class kissmanga_dl implements Closeable {
      * @return
      */
     public static boolean fromKissmanga(String url) {
-        return url.indexOf("https://kissmanga.com/Manga/") == 0;
+        return url.indexOf("https://kissmanga.org/") == 0;
     }
 
     /**

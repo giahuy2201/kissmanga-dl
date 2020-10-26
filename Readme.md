@@ -3,11 +3,11 @@
 _A word from the original repo's author:_
 
 > Don't wanna right click and save as image for every single page of your favorite manga on KissManga?
-> Automatically download all the manga instead! Inspired by [this](https://github.com/aviaryan/Kissanime-Batch-Downloader), manga should be downloadable as well.
+> Automatically download all the manga instead! Inspired by [this](https://github.org/aviaryan/Kissanime-Batch-Downloader), manga should be downloadable as well.
 
 Simply, you give _kissmanga-dl_ the link to your favorite manga, and it will take care of all downloading and packing, and return you an **EPUB** file that you can read anywhere on your smartphones.
 
-Here is how the manga look like in [_Lithium_](https://play.google.com/store/apps/details?id=com.faultexception.reader) app.
+Here is how the manga look like in [_Lithium_](https://play.google.org/store/apps/details?id=com.faultexception.reader) app.
 ![Created EPUB files on mobile](screens-demo.png)
 
 **Before using this script, read [TERMS OF USING](terms-of-using.md).**
@@ -21,7 +21,7 @@ Here is how the manga look like in [_Lithium_](https://play.google.com/store/app
 
 ## Usage
 
-_kissmanga-dl runs on [Docker](https://docs.docker.com/get-docker/) containers and uses [Maven](http://maven.apache.org/install.html) as build tool, so you should have them installed._
+_kissmanga-dl runs on [Docker](https://docs.docker.org/get-docker/) containers and uses [Maven](http://maven.apache.org/install.html) as build tool, so you should have them installed._
 
 1. Fetch this repo.
 2. Run `make run LINK=<your-manga-link>`.
@@ -43,19 +43,19 @@ Alternatively, you can also download the executable file in the Release section,
 Run using _docker-compose_:
 
 ```
-make run LINK=https://kissmanga.com/Manga/Kimi-no-Na-wa
+make run LINK=https://kissmanga.org/Manga/Kimi-no-Na-wa
 ```
 
 Run using executable after installation:
 
 ```
-kissmanga-dl -vl https://kissmanga.com/Manga/Kimi-no-Na-wa
+kissmanga-dl -vl https://kissmanga.org/Manga/Kimi-no-Na-wa
 ```
 
 will download the manga, print all messages and generate a log file.
 
 ```
-kissmanga-dl -d https://kissmanga.com/Manga/Kimi-no-Na-wa https://kissmanga.com/Manga/Kimi-no-Suizou-wo-Tabetai https://kissmanga.com/Manga/Sins
+kissmanga-dl -d https://kissmanga.org/Manga/Kimi-no-Na-wa https://kissmanga.org/Manga/Kimi-no-Suizou-wo-Tabetai https://kissmanga.org/Manga/Sins
 ```
 
 will only download all 3 manga without detail output.
@@ -75,4 +75,4 @@ For those who install _kissmanga-dl_ on Mac/Linux, the CLI offers you options to
 ## How it Works
 
 Selenium is used to control a firefox browser running in a docker container, in order to render the manga pages, and retrieve all image urls. The images are then downloaded en masse and packed into a epub file.
-Currently only supports `kissmanga.com`, no support yet for `kissmanga.io`, and other tld variants yet.
+Currently only supports `kissmanga.org`, looking forward to support for other sites.

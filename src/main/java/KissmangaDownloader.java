@@ -43,7 +43,7 @@ public class KissmangaDownloader {
     private String mangaTitle;
     private boolean mangaIsCompleted = true;
     private boolean verboseIsOn;
-    private static final String BASE_URL = "http://kissmanga.com";
+    private static final String BASE_URL = "http://kissmanga.org";
 
     public KissmangaDownloader(File outputDirectory, Logger logger, String port, boolean verboseIsOn) {
         // disable popups
@@ -93,9 +93,9 @@ public class KissmangaDownloader {
         if (!driver.getCurrentUrl().equals(url)) {
             driver.get(url);
             logger.info("Waiting for cloudflare protection to be over...");
-            WebDriverWait wait = new WebDriverWait(driver, 8, 50);
-            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.id("headnav")));
-            waitFor(3000);
+            WebDriverWait wait = new WebDriverWait(driver, 1, 50);
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.id("navbar")));
+            waitFor(1000);
         }
     }
 
@@ -121,7 +121,7 @@ public class KissmangaDownloader {
 
     private List<String> collectMangaImagesUrls() {
         logger.info("Getting all manga images urls...");
-        WebElement webElement = driver.findElement(By.id("divImage"));
+        WebElement webElement = driver.findElement(By.id("centerDivVideo"));
         String html = webElement.getAttribute("outerHTML");
         Document document = Jsoup.parseBodyFragment(html);
         Elements elements = document.getElementsByAttribute("src");
@@ -144,9 +144,10 @@ public class KissmangaDownloader {
         if (title.contentEquals("Error!")) {
             throw new IOException("Manga not found!");
         }
-        int cutBefore = title.indexOf(" manga");
+        int startTitle = 5;
+        int cutBefore = title.indexOf(" Online");
         // Remove unwanted /
-        String safeTitle = title.substring(0, cutBefore).trim().replace(' ', '-').replace('/', '-');
+        String safeTitle = title.substring(startTitle).substring(0, cutBefore).trim().replace(' ', '-').replace('/', '-');
         // Remove leading . in name that makes folder hidden
         safeTitle = StringUtils.strip(safeTitle, ".");
         return safeTitle;
@@ -170,7 +171,7 @@ public class KissmangaDownloader {
 
     public void downloadIndividualMangaChapter(String url, int index) {
         gotoPage(url);
-        changeToAllPagesMode();
+        // changeToAllPagesMode();
         List<String> urlsToDownload = collectMangaImagesUrls();
         Iterable<String> urlList = urlsToDownload;
         if (!verboseIsOn) {
@@ -215,7 +216,7 @@ public class KissmangaDownloader {
 
     /**
      * downloads all of the manga from a root manga page into separate directories
-     * eg: "http://kissmanga.com/Manga/Shingeki-no-Kyojin"
+     * eg: "http://kissmanga.org/Manga/Shingeki-no-Kyojin"
      *
      * @param rootMangaPage
      */
@@ -228,17 +229,19 @@ public class KissmangaDownloader {
         String html = driver.getPageSource();
         Document page = Jsoup.parse(html);
         // Get first author
-        Element authorNode = page.select("a[href^='/AuthorArtist']").first();
-        String mangaAuthor = authorNode.text().trim();
+        // Element authorNode = page.select("p:nth-of-type(2) a.dotUnder").first();
+        // String mangaAuthor = authorNode.text().trim();
+        String mangaAuthor = "kissmanga";
         // Create manga.xml
         exportProfile(mangaTitle, mangaAuthor);
         // Get chapters
-        Elements elements = page.select("td a[href]");
+        Elements elements = page.select(".listing h3 a[href]");
         List<String> mangaChapterUrls = new ArrayList<>();
         for (Element element : elements) {
             mangaChapterUrls.add(BASE_URL + element.attr("href"));
         }
         Collections.reverse(mangaChapterUrls);
+        // mangaChapterUrls.forEach(str -> System.out.println(str));
         // Resume
         int chapterIndexStart = getLastestDownloadedChapter();
         if (chapterIndexStart == 0) {
