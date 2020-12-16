@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.giahuy2201</groupId>
     <artifactId>kissmanga-dl</artifactId>
-    <version>1.0</version>
+    <version>2.0</version>
     <packaging>jar</packaging>
 
     <name>Kissmanga Epub Downloader</name>
@@ -26,9 +26,24 @@
             </plugin>
 
             <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.0.0</version>
+                <configuration>
+                    <mainClass>kissmanga_dl</mainClass>
+                    <arguments>
+                        <argument>https://kissmanga.org/manga/kimi_no_tsuku_uso_to_hontou</argument>
+                    </arguments>
+                </configuration>
+            </plugin>
+
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M5</version>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
                 <dependencies>
                     <dependency>
                         <groupId>org.junit.jupiter</groupId>
@@ -114,12 +129,6 @@
             <groupId>nl.siegmann.epublib</groupId>
             <artifactId>epublib-core</artifactId>
             <version>3.1</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.spotify</groupId>
-            <artifactId>docker-client</artifactId>
-            <version>8.16.0</version>
         </dependency>
 
         <dependency>

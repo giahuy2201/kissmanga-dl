@@ -6,6 +6,7 @@ import org.jsoup.select.Elements;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Extract some basic info for metadata
@@ -18,6 +19,10 @@ public class KissmangaExtractor {
     private String authors;
     private List<String> chapterNames;
     private List<String> chapterUrls;
+
+    public static boolean valid(String url){
+        return Pattern.matches("https?://kissmanga\\.org/manga/[^/]+",url);
+    }
 
     public KissmangaExtractor(Document pageSource) {
         page = pageSource;

@@ -1,23 +1,9 @@
 
-import com.spotify.docker.client.DefaultDockerClient;
-import com.spotify.docker.client.DockerClient;
-import com.spotify.docker.client.ProgressHandler;
-import com.spotify.docker.client.exceptions.DockerCertificateException;
-import com.spotify.docker.client.exceptions.DockerException;
-import com.spotify.docker.client.exceptions.ImageNotFoundException;
-import com.spotify.docker.client.messages.ContainerConfig;
-import com.spotify.docker.client.messages.ContainerCreation;
-import com.spotify.docker.client.messages.HostConfig;
-import com.spotify.docker.client.messages.PortBinding;
 import org.apache.commons.cli.*;
 
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,8 +14,6 @@ import java.util.logging.SimpleFormatter;
  */
 
 public class kissmanga_dl implements Closeable {
-    protected DockerClient docker;
-    protected String seleniumID;
     protected CommandLine command;
     protected Options cliOptions;
     protected Logger logger;
@@ -42,7 +26,6 @@ public class kissmanga_dl implements Closeable {
         try (kissmanga_dl cli = new kissmanga_dl(args)) {
             try {
                 // start kissmanga cli
-                ;
                 File currentDirectory = new File("./");
                 // options
                 if (cli.command.hasOption("help")) {
@@ -63,22 +46,22 @@ public class kissmanga_dl implements Closeable {
                 if (cli.command.getArgs().length > 0) {
                     String[] urls = cli.command.getArgs();
                     // check url
-                    if (!fromKissmanga(urls[0])) {
+                    if (!KissmangaExtractor.valid(urls[0])) {
                         printUsage("Unsupported URL");
                     }
                     // download
                     if (cli.command.hasOption("d")) {
-                        String port = cli.startSelenium();
+//                        String port = cli.startSelenium();
                         // wait for seleninum docker starting
                         Thread.sleep(5000);
                         // download only
-                        cli.download(urls[0], currentDirectory, port);
+                        cli.download(urls[0], currentDirectory);
                     } else if (cli.isDefaultOption()) {
-                        String port = cli.startSelenium();
+//                        String port = cli.startSelenium();
                         // wait for seleninum docker starting
                         Thread.sleep(5000);
                         // by default download and pack
-                        cli.downloadPack(urls[0], currentDirectory, port);
+                        cli.downloadPack(urls[0], currentDirectory);
                     } else {
                         // unwanted syntax: -p URL
                         printUsage("Unwanted syntax");
@@ -132,76 +115,6 @@ public class kissmanga_dl implements Closeable {
         setVerbose(false);
     }
 
-    /**
-     * Start a Selenium container when running with an executable
-     *
-     * @return Container port to communicate with downloader
-     * @throws DockerException
-     * @throws InterruptedException
-     * @throws DockerCertificateException
-     */
-    public String startSelenium() throws DockerException, InterruptedException, DockerCertificateException {
-        logger.info("Wait for selenium to start ...");
-        // make docker-compose compatible
-        String setPort = System.getenv("SELENIUM_PORT");
-        if (setPort != null && !setPort.isEmpty()) {
-            // running with docker-compose up
-            return setPort;
-        }
-        // Create a client based on DOCKER_HOST and DOCKER_CERT_PATH env vars
-        docker = DefaultDockerClient.fromEnv().build();
-        // shm-size & image
-        final long SHM_SIZE = 2 * 1024 * 1024 * (long) 1024;
-        final String SELENIUM_IMAGE = "selenium/standalone-firefox:latest";
-
-        // Pull an image
-        if (verboseIsOn) {
-            docker.pull(SELENIUM_IMAGE);
-        } else {
-            try {
-                docker.inspectImage(SELENIUM_IMAGE);
-            } catch (ImageNotFoundException e) {
-                System.out.println("Downloading Selenium image ...");
-            }
-            ProgressHandler silentHandler = message -> {
-            };
-            docker.pull(SELENIUM_IMAGE, silentHandler);
-        }
-
-        // Bind container port 4444 to port 4444 in host
-        final Map<String, List<PortBinding>> portBindings = new HashMap<>();
-        List<PortBinding> randomPort = new ArrayList<>();
-        String port = "" + (int) (32768 + Math.random() * 30000);
-        PortBinding portBinding = PortBinding.of("0.0.0.0", port);
-        randomPort.add(portBinding);
-        portBindings.put("4444/tcp", randomPort);
-
-        // Create container from selenium image
-        final HostConfig hostConfig = HostConfig.builder().shmSize(SHM_SIZE).portBindings(portBindings).build();
-        final ContainerConfig containerConfig = ContainerConfig.builder().hostConfig(hostConfig).image(SELENIUM_IMAGE)
-                .build();
-        final ContainerCreation creation = docker.createContainer(containerConfig);
-        seleniumID = creation.id();
-
-        // Start container
-        if (verboseIsOn) {
-            docker.startContainer(seleniumID);
-        } else {
-            docker.restartContainer(seleniumID);
-        }
-
-        return port;
-    }
-
-    /**
-     * Check if it is a valid link
-     *
-     * @param url
-     * @return
-     */
-    public static boolean fromKissmanga(String url) {
-        return url.indexOf("https://kissmanga.org/") == 0;
-    }
 
     /**
      * Wrong syntax detected, print message
@@ -220,11 +133,10 @@ public class kissmanga_dl implements Closeable {
      *
      * @param url
      * @param outputDirectory
-     * @param port
      * @throws IOException
      */
-    public void downloadPack(String url, File outputDirectory, String port) throws IOException {
-        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, port, verboseIsOn, url);
+    public void downloadPack(String url, File outputDirectory) throws IOException {
+        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, verboseIsOn, url);
         String name = downloader.getExtractor().getTitle();
         if (logFileIsOn) {
             addLogFile(outputDirectory, name);
@@ -240,11 +152,10 @@ public class kissmanga_dl implements Closeable {
      *
      * @param url
      * @param outputDirectory
-     * @param port
      * @throws IOException
      */
-    public void download(String url, File outputDirectory, String port) throws IOException {
-        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, port, verboseIsOn, url);
+    public void download(String url, File outputDirectory) throws IOException {
+        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, verboseIsOn, url);
         String name = downloader.getExtractor().getTitle();
         if (logFileIsOn) {
             addLogFile(outputDirectory, name);
@@ -347,16 +258,5 @@ public class kissmanga_dl implements Closeable {
     }
 
     @Override
-    public void close() {
-        // stop & remove created container
-        if (seleniumID != null) {
-            logger.info("Closing Selenium container ...");
-            try {
-                docker.killContainer(seleniumID);
-                docker.removeContainer(seleniumID);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
+    public void close() { }
 }

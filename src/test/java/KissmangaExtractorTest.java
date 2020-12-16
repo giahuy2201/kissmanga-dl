@@ -10,10 +10,25 @@ import java.util.stream.Stream;
 
 public class KissmangaExtractorTest {
     static final String[] mangaUrls = {"https://kissmanga.org/manga/kimi_no_tsuku_uso_to_hontou", "https://kissmanga.org/manga/kxqh9261558062112", "https://kissmanga.org/manga/read_nisekoi_manga_online_for_free2"};
+    static final String[] uncheckedUrls = {"http://kissmanga.org/manga//kimi_no_tsuku_uso_to_hontou", "https://kissmanga.org/manga/kxqh926155806211/2", "https://kissmanga.org/maxnga/read_nisekoi_manga_online_for_free2"};
     static final String[] titles = {"Kimi No Tsuku Uso To Hontou", "Attack On Titan", "Nisekoi"};
     static final String[] authors = {"Ajimine Sakufu", "Isayama Hajime", "Komi Naoshi"};
     static final String[] chapterUrls = {"https://kissmanga.org/chapter/kimi_no_tsuku_uso_to_hontou/chapter_1", "https://kissmanga.org/chapter/kxqh9261558062112/chapter_1", "https://kissmanga.org/chapter/read_nisekoi_manga_online_for_free2/chapter_1"};
     static final String[] chapterNames = {"Vol.1 Chapter 1", "Vol.1 Chapter 1: To You, 2,000 Years From Now", "Chapter 1"};
+
+    @ParameterizedTest
+    @MethodSource("urls")
+    public void testValidUrl(String url) {
+        Assertions.assertFalse(KissmangaExtractor.valid(url));
+    }
+
+    private static Stream<Arguments> urls() {
+        Stream<Arguments> str = Stream.empty();
+        for (int i = 0; i < uncheckedUrls.length; i++) {
+            str = Stream.concat(str, Stream.of(Arguments.of(uncheckedUrls[i])));
+        }
+        return str;
+    }
 
     @ParameterizedTest
     @MethodSource("urlTitles")

@@ -1,30 +1,20 @@
-export IMAGE_PREFIX = giahuy2201
-export IMAGE_NAME = kissmanga-dl
-export TAG = latest
-
-go: clean build remove
-	export LINK=$(LINK)
-	docker-compose up
+TEST=https://kissmanga.org/manga/kimi_no_tsuku_uso_to_hontou
 
 build:
 	mvn package
-	docker build -t=$(IMAGE_PREFIX)/$(IMAGE_NAME):$(TAG) .
 
-run: remove
-	export LINK=$(LINK)
-	docker-compose up
+run: build
+	mvn exec:java
+
+exec: build
+	java -cp target/kissmanga-dl-2.0.jar kissmanga_dl  $(TEST)
+
 
 clean:
 	mvn clean
-
-remove:
-	(docker stop $(IMAGE_NAME) && docker rm $(IMAGE_NAME)) 2>/dev/null || :
-	docker-compose down
 
 install:
 	mvn package
 	cat base.sh target/kissmanga-dl-1.0.jar > kissmanga-dl && chmod +x kissmanga-dl
 	cp kissmanga-dl /usr/local/bin
 
-push:
-	docker push $(IMAGE_PREFIX)/$(IMAGE_NAME):$(TAG)

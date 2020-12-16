@@ -11,8 +11,6 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.firefox.FirefoxProfile;
-import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -21,7 +19,6 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,47 +38,28 @@ public class KissmangaDownloader {
     private boolean mangaIsCompleted = true;
     private final boolean verboseIsOn;
     private KissmangaExtractor extractor;
-    private List<String> chapterUrls;
+    private int resumingIndex;
 
-    public KissmangaDownloader(File outputDirectory, Logger logger, String port, boolean verboseIsOn, String url) throws IOException {
-        // disable popups
-        FirefoxProfile profile = new FirefoxProfile();
-        profile.setPreference("dom.popup_maximum", 0);
-        profile.setPreference("privacy.popups.showBrowserMessage", false);
-        profile.setPreference("dom.disable_beforeunload", true);
-
+    public KissmangaDownloader(File outputDirectory, Logger logger, boolean verboseIsOn, String url) throws IOException {
         this.verboseIsOn = verboseIsOn;
         if (!verboseIsOn) {
             Logger.getLogger("org.openqa.selenium").setLevel(Level.OFF);
         }
-
         this.logger = logger;
         this.outputDirectory = outputDirectory;
 
-        URL webdriverUrl = null;
-        String seleniumHost = envOrDefault("SELENIUM_HOST", "localhost");
-        String seleniumPort = envOrDefault("SELENIUM_PORT", port);
+        System.setProperty("webdriver.gecko.driver", "/Users/giahuy/Downloads/geckodriver");
+        System.setProperty(FirefoxDriver.SystemProperty.BROWSER_LOGFILE, "/dev/null");
 
-        try {
-            webdriverUrl = new URL("http://" + seleniumHost + ":" + seleniumPort + "/wd/hub");
-        } catch (MalformedURLException e) {
-            logger.log(Level.WARNING, "Failed to parse URL", e);
-            // System.exit(1);
-        }
-
-        FirefoxOptions capabilities = new FirefoxOptions();
-        capabilities.setCapability(FirefoxDriver.PROFILE, profile);
-        driver = new RemoteWebDriver(webdriverUrl, capabilities);
+        FirefoxOptions options = new FirefoxOptions();
+        options.setHeadless(true);
+        // disable popups
+        options.addPreference("dom.popup_maximum", 0);
+        options.addPreference("privacy.popups.showBrowserMessage", false);
+        options.addPreference("dom.disable_beforeunload", true);
+        driver = new FirefoxDriver(options);
 
         setup(url);
-    }
-
-    private String envOrDefault(String env, String defaultValue) {
-        String toReturn = System.getenv(env);
-        if (toReturn == null || toReturn.isEmpty()) {
-            return defaultValue;
-        }
-        return toReturn;
     }
 
     /**
@@ -155,13 +133,13 @@ public class KissmangaDownloader {
         return extractor;
     }
 
-    public void downloadIndividualMangaChapter(String url, int index) {
+    public void downloadChapter(String url, int index) {
         gotoPage(url);
         // changeToAllPagesMode();
         List<String> urlsToDownload = collectMangaImagesUrls();
         Iterable<String> urlList = urlsToDownload;
         if (!verboseIsOn) {
-            urlList = ProgressBar.wrap(urlsToDownload, "Chapter " + index);
+            urlList = ProgressBar.wrap(urlsToDownload, "Chapter " + (index + 1));
         }
 
         int count = 0;
@@ -212,16 +190,12 @@ public class KissmangaDownloader {
         mangaDirectory = new File(outputDirectory, extractor.getTitle());
         mangaDirectory.mkdir();
         exportProfile(extractor.getTitle(), extractor.getAuthors());
-        List<String> mangaChapterUrls = extractor.getChapterUrls();
         // Resume
-        int chapterIndexStart = getLatestDownloadedChapter();
-        if (chapterIndexStart == 0) {
-            chapterIndexStart = 1;
-        } else {
-            System.out.println("Resuming at chapter " + chapterIndexStart);
+        this.resumingIndex = getLatestDownloadedChapter();
+        if (resumingIndex != 0) {
+            List<String> mangaChapterNames = extractor.getChapterNames();
+            System.out.println("Resuming at " + mangaChapterNames.get(resumingIndex));
         }
-        List<String> chapterUrls = extractor.getChapterUrls();
-        this.chapterUrls = chapterUrls.subList(chapterIndexStart - 1, chapterUrls.size());
     }
 
     /**
@@ -230,11 +204,16 @@ public class KissmangaDownloader {
      * @throws IOException
      */
     public void download() throws IOException {
+        List<String> chapterUrls = extractor.getChapterUrls();
+        chapterUrls = chapterUrls.subList(resumingIndex, chapterUrls.size());
+        int index = resumingIndex;
+
         for (String chapterUrl : chapterUrls) {
             logger.info("Downloading manga chapter from: " + chapterUrl);
-            downloadIndividualMangaChapter(chapterUrl, chapterUrls.indexOf(chapterUrl));
+            downloadChapter(chapterUrl, index++);
         }
         logger.info("Downloading finished");
+        driver.close();
     }
 
     /**
@@ -244,7 +223,7 @@ public class KissmangaDownloader {
         try {
             String baseXML = IOUtils.toString(getClass().getClassLoader().getResourceAsStream("manga.xml"), "UTF-8");
             baseXML = baseXML.replace("$TITLE", title);
-            baseXML = baseXML.replace("$COVER", "001-000.png");
+            baseXML = baseXML.replace("$COVER", "000-000.png");
             baseXML = baseXML.replace("$LANG", "en");
             baseXML = baseXML.replace("$AUTHOR", author);
             PrintWriter printWriter = new PrintWriter(new File(mangaDirectory, "manga.xml"));
