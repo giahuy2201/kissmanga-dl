@@ -14,9 +14,10 @@ Here is how the manga look like in [_Lithium_](https://play.google.org/store/app
 
 ## Features
 
+- [ ] Download imgs using multithreads.
+- [ ] Minimize created **EPUB** file size.
 - [x] Download and pack manga into **EPUB** files.
 - [x] Chapter mark manga **EPUB** files.
-- [ ] Minimize created **EPUB** file size.
 - [x] Run as a CLI command like _youtube-dl_
 
 ## Usage

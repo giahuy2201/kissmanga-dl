@@ -46,7 +46,6 @@ public class EpubCreator {
      * mangaDirectory
      * 
      * @param mangaDirectory  directory holding manga.xml profile file and images
-     * @param outputDirectory directory to store epub file
      * @throws IOException
      */
     public void create(File mangaDirectory) throws IOException {
@@ -170,7 +169,7 @@ public class EpubCreator {
         List<List<File>> lists = new ArrayList<>();
         for (File file : files) {
             // chapter number
-            int groupIndex = Integer.parseInt(file.getName().substring(0, 3)) - 1;
+            int groupIndex = Integer.parseInt(file.getName().substring(0, 3));
             if (groupIndex > lists.size() - 1) {
                 // fill in non-existing lists
                 for (int i = lists.size(); i <= groupIndex; i++) {

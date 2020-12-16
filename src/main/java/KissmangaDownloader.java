@@ -1,7 +1,7 @@
 
+import me.tongfei.progressbar.ProgressBar;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -16,8 +16,6 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
-
-import me.tongfei.progressbar.ProgressBar;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -36,16 +34,16 @@ import java.util.logging.Logger;
  * Downloader class to work with Selenium container
  */
 public class KissmangaDownloader {
-    private WebDriver driver;
+    private final WebDriver driver;
     private final Logger logger;
     private final File outputDirectory;
     private File mangaDirectory; // save each manga to the folder of its name
-    private String mangaTitle;
     private boolean mangaIsCompleted = true;
-    private boolean verboseIsOn;
-    private static final String BASE_URL = "http://kissmanga.org";
+    private final boolean verboseIsOn;
+    private KissmangaExtractor extractor;
+    private List<String> chapterUrls;
 
-    public KissmangaDownloader(File outputDirectory, Logger logger, String port, boolean verboseIsOn) {
+    public KissmangaDownloader(File outputDirectory, Logger logger, String port, boolean verboseIsOn, String url) throws IOException {
         // disable popups
         FirefoxProfile profile = new FirefoxProfile();
         profile.setPreference("dom.popup_maximum", 0);
@@ -74,6 +72,8 @@ public class KissmangaDownloader {
         FirefoxOptions capabilities = new FirefoxOptions();
         capabilities.setCapability(FirefoxDriver.PROFILE, profile);
         driver = new RemoteWebDriver(webdriverUrl, capabilities);
+
+        setup(url);
     }
 
     private String envOrDefault(String env, String defaultValue) {
@@ -133,31 +133,9 @@ public class KissmangaDownloader {
     }
 
     /**
-     * Get the manga name from page title. Eg. Kimi no Na wa. manga | Read Kimi no
-     * Na wa. manga online in high quanlity -> Kimi-no-Na-wa.
-     *
-     * @param title
-     * @return
-     * @throws Exception
-     */
-    private String stripTitle(String title) throws IOException {
-        if (title.contentEquals("Error!")) {
-            throw new IOException("Manga not found!");
-        }
-        int startTitle = 5;
-        int cutBefore = title.indexOf(" Online");
-        // Remove unwanted /
-        String safeTitle = title.substring(startTitle).substring(0, cutBefore).trim().replace(' ', '-').replace('/', '-');
-        // Remove leading . in name that makes folder hidden
-        safeTitle = StringUtils.strip(safeTitle, ".");
-        return safeTitle;
-    }
-
-    /**
      * Format index number into ### for better EPUB bundling. Eg. 1 -> 001
-     * 
-     * @param url
-     * @param index
+     *
+     * @param count decimal number
      */
     private String formatIndex(int count) {
         final int LENGTH = 3;
@@ -167,6 +145,14 @@ public class KissmangaDownloader {
             index = "0" + index;
         }
         return index;
+    }
+
+    public File getMangaDirectory() {
+        return mangaDirectory;
+    }
+
+    public KissmangaExtractor getExtractor() {
+        return extractor;
     }
 
     public void downloadIndividualMangaChapter(String url, int index) {
@@ -208,60 +194,47 @@ public class KissmangaDownloader {
             // Has it get the frame eventually
             if (!frameIsCompleted && mangaIsCompleted) {
                 mangaIsCompleted = false;
-                logger.severe("Cannot bundle " + mangaTitle);
+                logger.severe("Cannot bundle " + extractor.getTitle());
             }
             count++;
         }
     }
 
     /**
-     * downloads all of the manga from a root manga page into separate directories
-     * eg: "http://kissmanga.org/Manga/Shingeki-no-Kyojin"
-     *
-     * @param rootMangaPage
+     * Prepare
      */
-    public File download(String rootMangaPage) throws IOException {
-        gotoPage(rootMangaPage);
-        mangaTitle = stripTitle(driver.getTitle());
-        mangaDirectory = new File(outputDirectory, mangaTitle);
-        mangaDirectory.mkdir();
-
+    public void setup(String url) throws IOException {
+        gotoPage(url);
         String html = driver.getPageSource();
         Document page = Jsoup.parse(html);
-        // Get first author
-        // Element authorNode = page.select("p:nth-of-type(2) a.dotUnder").first();
-        // String mangaAuthor = authorNode.text().trim();
-        String mangaAuthor = "kissmanga";
-        // Create manga.xml
-        exportProfile(mangaTitle, mangaAuthor);
-        // Get chapters
-        Elements elements = page.select(".listing h3 a[href]");
-        List<String> mangaChapterUrls = new ArrayList<>();
-        for (Element element : elements) {
-            mangaChapterUrls.add(BASE_URL + element.attr("href"));
-        }
-        Collections.reverse(mangaChapterUrls);
-        // mangaChapterUrls.forEach(str -> System.out.println(str));
+        // Extract manga info
+        extractor = new KissmangaExtractor(page);
+        mangaDirectory = new File(outputDirectory, extractor.getTitle());
+        mangaDirectory.mkdir();
+        exportProfile(extractor.getTitle(), extractor.getAuthors());
+        List<String> mangaChapterUrls = extractor.getChapterUrls();
         // Resume
-        int chapterIndexStart = getLastestDownloadedChapter();
+        int chapterIndexStart = getLatestDownloadedChapter();
         if (chapterIndexStart == 0) {
             chapterIndexStart = 1;
         } else {
             System.out.println("Resuming at chapter " + chapterIndexStart);
         }
-        mangaChapterUrls = mangaChapterUrls.subList(chapterIndexStart - 1, mangaChapterUrls.size());
-        for (String chapterNumber : mangaChapterUrls) {
-            logger.info("Downloading manga chapter from: " + chapterNumber);
-            downloadIndividualMangaChapter(chapterNumber, chapterIndexStart);
-            chapterIndexStart++;
-        }
-        logger.info("Downloading finished");
-        return mangaDirectory;
+        List<String> chapterUrls = extractor.getChapterUrls();
+        this.chapterUrls = chapterUrls.subList(chapterIndexStart - 1, chapterUrls.size());
     }
 
-    protected String getTitle(String url) throws IOException {
-        gotoPage(url);
-        return stripTitle(driver.getTitle());
+    /**
+     * Download
+     *
+     * @throws IOException
+     */
+    public void download() throws IOException {
+        for (String chapterUrl : chapterUrls) {
+            logger.info("Downloading manga chapter from: " + chapterUrl);
+            downloadIndividualMangaChapter(chapterUrl, chapterUrls.indexOf(chapterUrl));
+        }
+        logger.info("Downloading finished");
     }
 
     /**
@@ -286,7 +259,7 @@ public class KissmangaDownloader {
     /**
      * Find the latest chapter number to resume
      */
-    private int getLastestDownloadedChapter() {
+    private int getLatestDownloadedChapter() {
         File[] mangaFrames = mangaDirectory.listFiles(new FileFilter() {
             @Override
             public boolean accept(File pathname) {

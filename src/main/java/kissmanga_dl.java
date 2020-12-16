@@ -1,4 +1,16 @@
 
+import com.spotify.docker.client.DefaultDockerClient;
+import com.spotify.docker.client.DockerClient;
+import com.spotify.docker.client.ProgressHandler;
+import com.spotify.docker.client.exceptions.DockerCertificateException;
+import com.spotify.docker.client.exceptions.DockerException;
+import com.spotify.docker.client.exceptions.ImageNotFoundException;
+import com.spotify.docker.client.messages.ContainerConfig;
+import com.spotify.docker.client.messages.ContainerCreation;
+import com.spotify.docker.client.messages.HostConfig;
+import com.spotify.docker.client.messages.PortBinding;
+import org.apache.commons.cli.*;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -10,27 +22,6 @@ import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-
-import com.spotify.docker.client.DefaultDockerClient;
-import com.spotify.docker.client.DockerClient;
-import com.spotify.docker.client.ProgressHandler;
-import com.spotify.docker.client.exceptions.DockerCertificateException;
-import com.spotify.docker.client.exceptions.DockerException;
-import com.spotify.docker.client.exceptions.ImageNotFoundException;
-import com.spotify.docker.client.messages.ContainerConfig;
-import com.spotify.docker.client.messages.ContainerCreation;
-import com.spotify.docker.client.messages.HostConfig;
-import com.spotify.docker.client.messages.PortBinding;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.openqa.selenium.TimeoutException;
-import org.openqa.selenium.WebDriverException;
 
 /**
  * Main class controlling CLI and branching
@@ -81,13 +72,13 @@ public class kissmanga_dl implements Closeable {
                         // wait for seleninum docker starting
                         Thread.sleep(5000);
                         // download only
-                        cli.downloadAll(urls, currentDirectory, port);
+                        cli.download(urls[0], currentDirectory, port);
                     } else if (cli.isDefaultOption()) {
                         String port = cli.startSelenium();
                         // wait for seleninum docker starting
                         Thread.sleep(5000);
                         // by default download and pack
-                        cli.downloadAllPack(urls, currentDirectory, port);
+                        cli.downloadPack(urls[0], currentDirectory, port);
                     } else {
                         // unwanted syntax: -p URL
                         printUsage("Unwanted syntax");
@@ -101,14 +92,14 @@ public class kissmanga_dl implements Closeable {
                     }
                 }
 
-            // } catch (DockerException e) {
-            //     System.out.println("Problem starting Selenium container. Restart Docker or check your installation");
-            // } catch (IOException e) {
-            //     System.out.println("ERROR: Invalid URL");
-            // } catch (TimeoutException e) {
-            //     System.out.println("ERROR: Problem retrieving pages. Try again in a moment");
-            // } catch (WebDriverException e) {
-            //     System.out.println("ERROR: Problem connecting to Selenium container. Try again in a moment");
+                // } catch (DockerException e) {
+                //     System.out.println("Problem starting Selenium container. Restart Docker or check your installation");
+                // } catch (IOException e) {
+                //     System.out.println("ERROR: Invalid URL");
+                // } catch (TimeoutException e) {
+                //     System.out.println("ERROR: Problem retrieving pages. Try again in a moment");
+                // } catch (WebDriverException e) {
+                //     System.out.println("ERROR: Problem connecting to Selenium container. Try again in a moment");
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -143,7 +134,7 @@ public class kissmanga_dl implements Closeable {
 
     /**
      * Start a Selenium container when running with an executable
-     * 
+     *
      * @return Container port to communicate with downloader
      * @throws DockerException
      * @throws InterruptedException
@@ -204,7 +195,7 @@ public class kissmanga_dl implements Closeable {
 
     /**
      * Check if it is a valid link
-     * 
+     *
      * @param url
      * @return
      */
@@ -214,7 +205,7 @@ public class kissmanga_dl implements Closeable {
 
     /**
      * Wrong syntax detected, print message
-     * 
+     *
      * @param message
      */
     public static void printUsage(String message) {
@@ -226,54 +217,45 @@ public class kissmanga_dl implements Closeable {
 
     /**
      * Download then pack
-     * 
-     * @param urls
+     *
+     * @param url
      * @param outputDirectory
      * @param port
      * @throws IOException
      */
-    public void downloadAllPack(String[] urls, File outputDirectory, String port) throws IOException {
-        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, port, verboseIsOn);
-        for (String url : urls) {
-            if (!fromKissmanga(url)) {
-                continue;
-            }
-            String name = downloader.getTitle(url);
-            if (logFileIsOn) {
-                addLogFile(outputDirectory, name);
-            }
-            System.out.println("Downloading " + name);
-            File mangaDirectory = downloader.download(url);
-            pack(mangaDirectory, outputDirectory, true);
+    public void downloadPack(String url, File outputDirectory, String port) throws IOException {
+        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, port, verboseIsOn, url);
+        String name = downloader.getExtractor().getTitle();
+        if (logFileIsOn) {
+            addLogFile(outputDirectory, name);
         }
+        System.out.println("Downloading " + name);
+        File mangaDirectory = downloader.getMangaDirectory();
+        downloader.download();
+        pack(mangaDirectory, outputDirectory, true);
     }
 
     /**
      * Just download
-     * 
-     * @param urls
+     *
+     * @param url
      * @param outputDirectory
      * @param port
      * @throws IOException
      */
-    public void downloadAll(String[] urls, File outputDirectory, String port) throws IOException {
-        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, port, verboseIsOn);
-        for (String url : urls) {
-            if (!fromKissmanga(url)) {
-                continue;
-            }
-            String name = downloader.getTitle(url);
-            if (logFileIsOn) {
-                addLogFile(outputDirectory, name);
-            }
-            System.out.println("Downloading " + name);
-            downloader.download(url);
+    public void download(String url, File outputDirectory, String port) throws IOException {
+        KissmangaDownloader downloader = new KissmangaDownloader(outputDirectory, logger, port, verboseIsOn, url);
+        String name = downloader.getExtractor().getTitle();
+        if (logFileIsOn) {
+            addLogFile(outputDirectory, name);
         }
+        System.out.println("Downloading " + name);
+        downloader.download();
     }
 
     /**
      * Pack all manga found in the directory
-     * 
+     *
      * @param outputDirectory
      * @throws IOException
      */
@@ -288,7 +270,7 @@ public class kissmanga_dl implements Closeable {
 
     /**
      * Pack a manga
-     * 
+     *
      * @param mangaDirectory
      * @param outputDirectory
      * @param sameLogFile
@@ -320,7 +302,7 @@ public class kissmanga_dl implements Closeable {
 
     /**
      * Create a log file
-     * 
+     *
      * @param outputDirectory
      * @param name
      */
@@ -347,7 +329,7 @@ public class kissmanga_dl implements Closeable {
 
     /**
      * Only v or l option provided
-     * 
+     *
      * @return
      */
     protected boolean isDefaultOption() {
