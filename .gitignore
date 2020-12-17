@@ -46,3 +46,6 @@ target/
 .settings/
 .project
 .classpath
+
+build
+.gradle

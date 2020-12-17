@@ -17,7 +17,11 @@ java {
 }
 
 application {
-    mainClassName = "com.giahuy2201.manga_dl.manga_dl"
+    mainClass.set("com.giahuy2201.manga_dl.MangaDL")
+}
+
+test {
+    useJUnitPlatform()
 }
 
 repositories {
@@ -29,13 +33,14 @@ repositories {
 
 dependencies {
     implementation 'commons-io:commons-io:2.5'
-    implementation 'commons-cli:commons-cli:1.4'
     implementation 'org.apache.commons:commons-lang3:3.10'
     implementation 'org.seleniumhq.selenium:selenium-java:3.141.59'
     implementation 'org.jsoup:jsoup:1.9.1'
     implementation 'nl.siegmann.epublib:epublib-core:3.1'
     implementation 'me.tongfei:progressbar:0.8.1'
-    testImplementation 'junit:junit:4.13.1'
+    implementation 'com.beust:jcommander:1.78'
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.7.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+
 }
 

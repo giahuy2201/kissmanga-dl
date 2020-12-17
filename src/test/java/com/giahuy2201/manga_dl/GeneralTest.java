@@ -1,6 +1,5 @@
 package com.giahuy2201.manga_dl;
 
-import org.jsoup.Jsoup;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
@@ -21,8 +20,8 @@ public class GeneralTest {
         options.setHeadless(true);
         WebDriver drv = new FirefoxDriver(options);
         drv.get("https://kissmanga.org/manga/kxqh9261558062112");
-        KissmangaExtractor kex = new KissmangaExtractor(Jsoup.parse(drv.getPageSource()));
-        System.out.println(kex.getTitle());
+//        Extractor kex = new KissmangaExtractor();
+//        System.out.println(kex.getTitle());
         drv.close();
     }
 }

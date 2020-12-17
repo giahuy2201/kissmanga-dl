@@ -1,9 +1,9 @@
 package com.giahuy2201.manga_dl;
 
-import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,60 +12,69 @@ import java.util.regex.Pattern;
 /**
  * Extract some basic info for metadata
  */
-public class KissmangaExtractor {
+public class KissmangaExtractor extends Extractor {
 
     final String BASE_URL = "https://kissmanga.org";
-    private Document page;
-    private String title;
-    private String authors;
-    private List<String> chapterNames;
-    private List<String> chapterUrls;
 
-    public static boolean valid(String url){
-        return Pattern.matches("https?://kissmanga\\.org/manga/[^/]+/?",url);
+    public KissmangaExtractor(String url) throws Exception {
+        super(url);
     }
 
-    public KissmangaExtractor(Document pageSource) {
-        page = pageSource;
+    public KissmangaExtractor(File dir) throws Exception {
+        super(dir);
     }
 
-    public String getTitle() {
-        if(title!=null){
-            return title;
-        }
-        title = page.select("h2 strong.bigChar").first().text().replace("/","|").trim();
-        return title;
+    protected static boolean valid(String url) {
+        return Pattern.matches("https?://kissmanga\\.org/manga/[^/]+/?", url);
     }
 
-    public String getAuthors() {
-        if(authors!=null){
-            return authors;
-        }
-        authors = page.select("p.info:nth-child(3) a.dotUnder").first().text().trim();
-        return authors;
+    protected String escape(String str) {
+        return str.replace("/", "|").replace("-", "").replace(".", ":").trim();
     }
 
-    public List<String> getChapterUrls() {
-        Elements elements = page.select(".listing h3 a[href]");
-        chapterUrls = new ArrayList<>();
+    protected void retrieveTitle() {
+        setTitle(getPage().select("h2 strong.bigChar").first().text());
+    }
+
+    protected void retrieveAuthors() {
+        setAuthors(getPage().select("p.info:nth-child(3) a.dotUnder").first().text());
+    }
+
+    protected void retrieveChaptersNames() {
+        Elements elements = getPage().select(".listing h3 a[href]");
+        List<String> chaptersNames = new ArrayList<>();
         for (Element element : elements) {
-            chapterUrls.add(BASE_URL + element.attr("href"));
+            String name = element.text();
+            chaptersNames.add(escape(escape(name).replace(getTitle(), "")));
         }
-        Collections.reverse(chapterUrls);
-        return chapterUrls;
+        Collections.reverse(chaptersNames);
+        setChaptersNames(chaptersNames);
     }
 
-    public List<String> getChapterNames() {
-        Elements elements = page.select(".listing h3 a[href]");
-        chapterNames = new ArrayList<>();
-        if (title == null) {
-            getTitle();
-        }
+    protected void retrieveChaptersURLs() {
+        Elements elements = getPage().select(".listing h3 a[href]");
+        List<String> chaptersURLs = new ArrayList<>();
+//        try {
+//            FileWriter f = new FileWriter(getTitle() + ".txt");
         for (Element element : elements) {
-            String name = element.text().replace(title, "").replace("-", " ").trim();
-            chapterNames.add(name);
+            chaptersURLs.add(BASE_URL + element.attr("href"));
+//            f.write(element.attr("href")+"\n");
         }
-        Collections.reverse(chapterNames);
-        return chapterNames;
+        Collections.reverse(chaptersURLs);
+        setChaptersURLs(chaptersURLs);
+//        f.close();
+//    } catch (Exception e) {
+//    }
+    }
+
+    protected void retrieveChaptersPNGs() {
+        Elements elements = getPage().select("div#centerDivVideo img");
+        List<List<String>> chaptersPNGs = this.getChaptersPNGs();
+        List<String> chapterPNGs = new ArrayList<>();
+        for (Element element : elements) {
+            chapterPNGs.add(element.attr("src"));
+        }
+        chaptersPNGs.add(chapterPNGs);
+        setChaptersPNGs(chaptersPNGs);
     }
 }
