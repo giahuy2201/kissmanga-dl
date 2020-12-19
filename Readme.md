@@ -12,7 +12,7 @@ Here is how the downloaded manga look like when you import them into [_Lithium_]
 
 - [x] _youtube-dl_-like command line interface.
 - [x] Chapter-mark **EPUB** bundling.
-- [ ] Multithreading image downloading.
+- [x] Multithreading image downloading.
 - [ ] PDF bundling.
 - [ ] Compressed **EPUB**  bundling.
 - [ ] Dockerized execution. 
@@ -52,6 +52,7 @@ Commands:
   download  Only download image files (.png).
   bundle    Pack image files (.png) into an EPUB file
 ```
+> Note: add option `-t` followed by number of threads that your computer can handle optimally to adjust downloading performance. By default, this option is set to 10 which works perfectly on my setup.
 
 ### Examples
 
