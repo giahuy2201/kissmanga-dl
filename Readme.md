@@ -1,79 +1,80 @@
-# kissmanga-dl
+# manga-dl
+Need a tool to fetch those manga you love quickly, you hate advertisement and don't like to read online. Don't worry, _manga-dl_ got your back. _manga-dl_ will get your favorite manga from [Kissmanga](https://kissmanga.org/) straight into your computer, and you can read them on whatever device you have as long as it's **EPUB** compatible.
 
-_A word from the original repo's author:_
+Simply put, with a single command _manga-dl_ downloads your manga and automatically bundles it into a portable EPUB file that you can read whenever you want without the internet.
 
-> Don't wanna right click and save as image for every single page of your favorite manga on KissManga?
-> Automatically download all the manga instead! Inspired by [this](https://github.org/aviaryan/Kissanime-Batch-Downloader), manga should be downloadable as well.
-
-Simply, you give _kissmanga-dl_ the link to your favorite manga, and it will take care of all downloading and packing, and return you an **EPUB** file that you can read anywhere on your smartphones.
-
-Here is how the manga look like in [_Lithium_](https://play.google.org/store/apps/details?id=com.faultexception.reader) app.
+Here is how the downloaded manga look like when you import them into [_Lithium_](https://play.google.org/store/apps/details?id=com.faultexception.reader) app. This is just for the demo, any app that supports reading **EPUB** file works just fine
 ![Created EPUB files on mobile](screens-demo.png)
 
 **Before using this script, read [TERMS OF USING](terms-of-using.md).**
 
 ## Features
 
-- [ ] Download imgs using multithreads.
-- [ ] Minimize created **EPUB** file size.
-- [x] Download and pack manga into **EPUB** files.
-- [x] Chapter mark manga **EPUB** files.
-- [x] Run as a CLI command like _youtube-dl_
+- [x] _youtube-dl_-like command line interface.
+- [x] Chapter-mark **EPUB** bundling.
+- [ ] Multithreading image downloading.
+- [ ] PDF bundling.
+- [ ] Compressed **EPUB**  bundling.
+- [ ] Dockerized execution. 
+- [ ] Other sites support.
+
+## Setup
+
+_manga-dl_ is a command line tool written in Java, so of course you need Java to run it. Grab one [here](https://www.oracle.com/java/technologies/javase-jre8-downloads.html)
+
+> The current version is under development, you also need to have [Google Chrome](https://www.google.com/chrome/) installed
+
+1. Clone the repo
+```
+git clone https://github.com/giahuy2201/manga-dl.git
+```
+2. Navigate to the project folder
+```
+cd manga-dl
+```
+3. Build the project using `./gradlew`
+```
+./gradlew clean jar
+```
+You now have successfully built your `manga-dl-2.0.jar`.
 
 ## Usage
 
-_kissmanga-dl runs on [Docker](https://docs.docker.org/get-docker/) containers and uses [Maven](http://maven.apache.org/install.html) as build tool, so you should have them installed._
-
-1. Fetch this repo.
-2. Run `make run LINK=<your-manga-link>`.
-
-_Note: This step will run kissmanga-dl using docker-compose._
-
-### For Mac/Linux
-
-You can run it without _docker-compose_
-
-- Run `make install` in the repo directory to install _kissmanga-dl_ systemwide, and you can run it anywhere like _youtube-dl_
-
-_Note: This step will automatically copy the generated executable kissmanga-dl to `/usr/local/bin`._
-
-Alternatively, you can also download the executable file in the Release section, make it executable using command `chmod +x kissmanga-dl` and run it `./kissmanga-dl` in that same directory.
+Before continue, make sure you have `chromedriver` in the project foler as well as Google Chrome installed.
+You can now start executing your command by prompting it with `java -jar build/libs/manga-dl-2.0.jar`. Here is the help message.
+```
+Usage: manga-dl [-hl] [URL] [COMMAND]
+      [URL]    Link to manga.
+  -h, --help   Show this help message.
+  -l, --log    Save log file.
+Commands:
+  download  Only download image files (.png).
+  pack      Pack image files (.png) into an EPUB file.
+```
 
 ### Examples
 
-Run using _docker-compose_:
-
+Download and pack manga
 ```
-make run LINK=https://kissmanga.org/Manga/Kimi-no-Na-wa
+java -jar build/libs/manga-dl-2.0.jar https://kissmanga.org/manga/bv917658
 ```
+![Download and pack manga command output](screens-usage.png)
 
-Run using executable after installation:
-
+Download and save image files
 ```
-kissmanga-dl -vl https://kissmanga.org/Manga/Kimi-no-Na-wa
+java -jar build/libs/manga-dl-2.0.jar download https://kissmanga.org/manga/bv917658
 ```
-
-will download the manga, print all messages and generate a log file.
-
+Bundle images files into an EPUB file
 ```
-kissmanga-dl -d https://kissmanga.org/Manga/Kimi-no-Na-wa https://kissmanga.org/Manga/Kimi-no-Suizou-wo-Tabetai https://kissmanga.org/Manga/Sins
+java -jar build/libs/manga-dl-2.0.jar pack 'Tensura Nikki Tensei Shitara Slime Datta Ken'
 ```
 
-will only download all 3 manga without detail output.
+_manga-dl_  first downloads and stores your manga frames int a folder under the manga's title in `.png` format. It then collects all the frames and bundle them into an EPUB file. In addition, it saves your manga's metadata as well as all the frames' urls in `manga.xml` located at the manga directory for later bundling options. The EPUB file of your manga is generated right at the project folder, the manga folder can be deleted safely afterward.
 
-```
-kissmanga-dl -pl
-```
+## How it works
 
-will pack all found manga in current directory and generate log files.
+_manga-dl_ uses Selenium to control your Chrome browser to access your manga url and collect all the manga's frames. The manga frames' urls as well as other metadata about the manga is saved. After that _manga-dl_ downloader goes through all the frames' urls and retrieve them. Finally, _manga-dl_ bundler kicks in and create an EPUB file.
 
-_Note: You should add `sudo` before `kissmanga-dl` when running on Linux._
+## Disclaimer
 
-Each manga is downloaded as a separate directory under their names and their **EPUB** files will be located at your current working directory.
-
-For those who install _kissmanga-dl_ on Mac/Linux, the CLI offers you options to download and pack files seperately as well as generate log files. That is if you would like a bit more customization over your **EPUB** files, you can download the manga first, then edit the `manga.xml` file in each manga folder, and pack them into **EPUB** files when you are ready.
-
-## How it Works
-
-Selenium is used to control a firefox browser running in a docker container, in order to render the manga pages, and retrieve all image urls. The images are then downloaded en masse and packed into a epub file.
-Currently only supports `kissmanga.org`, looking forward to support for other sites.
+Manga piracy is an act of stealing which is _illegal_, using _manga-dl_ for non-personal purposes is discouraged. _manga-dl_ is made for the sole purpose of education, its creator will NOT be responsible for any consequences.

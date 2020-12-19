@@ -1,150 +1,1 @@
-package com.giahuy2201.manga_dl;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.logging.FileHandler;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-
-/**
- * Main class controlling CLI and branching
- */
-
-@Parameters(commandDescription = "Download and pack manga")
-public class MangaDL {
-
-    @Parameters(commandDescription = "Only download image files (.png)")
-    private class MangaDownLoad {
-
-        @Parameter(description = "URL", required = true)
-        private String mangaUrl;
-
-        @Parameter(names = {"--log", "-l"}, description = "Save log file")
-        private boolean log = false;
-    }
-
-    @Parameters(commandDescription = "Pack image files (.png) into EPUB files")
-    private class MangaPack {
-
-        @Parameter(description = "PNG folder path")
-        private String mangaUrl;
-
-        @Parameter(names = {"--log", "-l"}, description = "Save log file")
-        private boolean log = false;
-    }
-
-    @Parameter(description = "URL", required = true)
-    private String mangaUrl;
-
-    @Parameter(names = {"--log", "-l"}, description = "Save log file")
-    private boolean log = false;
-
-    @Parameter(names = "--help", description = "Show this help", help = true)
-    private boolean help;
-
-    JCommander commander;
-    MangaDownLoad downLoad;
-    MangaPack pack;
-    static Logger logger;
-    static Extractor extractor;
-
-    public static void main(String[] args) {
-        MangaDL mdl = new MangaDL();
-
-        try {
-            mdl.commander.parse(args);
-            mdl.run();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    MangaDL() {
-        this.downLoad = new MangaDownLoad();
-        this.pack = new MangaPack();
-        this.commander = JCommander.newBuilder().addObject(this).addCommand("download", downLoad).addCommand("pack", pack).build();
-        MangaDL.logger = Logger.getLogger(getClass().getName());
-    }
-
-    public void run() throws Exception {
-        if (help) {
-            commander.usage();
-        } else {
-            String command = commander.getParsedCommand();
-            String url = this.mangaUrl;
-            boolean log = this.log;
-
-            if (command.equals("pack")) {
-                pack();
-            } else if (command.equals("download")) {
-                url = downLoad.mangaUrl;
-                log = downLoad.log;
-            }
-
-            if (Extractor.valid(url)) {
-                this.extractor = new KissmangaExtractor(url);
-                System.out.println(extractor.getTitle());
-
-                if (log) {
-                    addLogFile();
-                }
-                download();
-                if (command.equals("")) {
-                    pack();
-                }
-            } else {
-                System.out.println("Unsupported URL");
-            }
-        }
-    }
-
-
-    /**
-     * Just download
-     *
-     * @throws IOException
-     */
-    public void download() throws IOException {
-        new Downloader().download();
-    }
-
-    /**
-     * Pack a manga
-     *
-     * @throws IOException
-     */
-    public void pack() throws Exception {
-        File mangaDirectory = extractor.getMangaDirectory();
-        List<File> folders = new ArrayList<>();
-
-        if (mangaDirectory == null) {
-            folders = Arrays.asList(new File("./").listFiles());
-        } else {
-            folders.add(mangaDirectory);
-        }
-
-        EPUBBundler creator;
-        for (File folder : folders) {
-            creator = new EPUBBundler();
-            if (mangaDirectory.isDirectory()) {
-                creator.create();
-            }
-        }
-    }
-
-    /**
-     * Create a log file
-     */
-    public void addLogFile() throws IOException {
-        FileHandler logFileHandler = new FileHandler("log.txt");
-        logFileHandler.setFormatter(new SimpleFormatter());
-        logger.addHandler(logFileHandler);
-    }
-}
+package com.giahuy2201.manga_dl;import picocli.CommandLine;import picocli.CommandLine.*;import java.io.File;import java.io.IOException;import java.util.concurrent.Callable;import java.util.logging.FileHandler;import java.util.logging.Logger;import java.util.logging.SimpleFormatter;/** * Main class controlling CLI and branching */@Command(name = "download", description = "Only download image files (.png).")class MangaDownLoad implements Callable<Integer> {	@ParentCommand	private MangaDL mdl;	@Parameters(paramLabel = "URL", description = "Link to manga.")	private String mangaUrl;	@Override	public Integer call() throws Exception {		if (mdl.log) {			MangaDL.addLogFile();		}		MangaDL.extractor = new Extractor(mangaUrl, new Kissmanga());		MangaDL.download();		System.out.println("done.");		return 0;	}}@Command(name = "pack", description = "Pack image files (.png) into an EPUB file")class MangaPack implements Callable<Integer> {	@ParentCommand	private MangaDL mdl;	@Parameters(paramLabel = "path", description = "Manga directory.")	private String mangaDirectory;	@Override	public Integer call() throws Exception {		if (mdl.log) {			MangaDL.addLogFile();		}		MangaDL.extractor = new Extractor(new File(mangaDirectory));		MangaDL.pack();		System.out.println("done.");		return 0;	}}@Command(name = "manga-dl", subcommands = {MangaDownLoad.class, MangaPack.class})public class MangaDL implements Callable<Integer> {	@Parameters(paramLabel = "URL", description = "Link to manga.", arity = "0..1")	private String mangaUrl;	@Option(names = {"--log", "-l"}, description = "Save log file.", scope = ScopeType.INHERIT)	protected boolean log = false;	@Option(names = {"--help", "-h"}, description = "Show this help message.", usageHelp = true)	private boolean help = false;	static Logger logger;	static Extractor extractor;	public static void main(String... args) {		MangaDL mdl = new MangaDL();		int exitCode = 1;		try {			exitCode = new CommandLine(mdl).execute(args);		} catch (Exception e) {			e.printStackTrace();		}		System.exit(exitCode);	}	MangaDL() {		;		MangaDL.logger = Logger.getLogger(getClass().getName());		// disable console output		MangaDL.logger.setUseParentHandlers(false);	}	public Integer call() throws Exception {		if (log) {			MangaDL.addLogFile();		}		MangaDL.extractor = new Extractor(mangaUrl, new Kissmanga());		MangaDL.download();		MangaDL.pack();		System.out.println("done.");		return 0;	}	/**	 * Just download	 *	 * @throws IOException	 */	protected static void download() throws IOException {		new Downloader().download();	}	/**	 * Pack a manga	 *	 * @throws Exception	 */	protected static void pack() throws Exception {		new EPUBBundler().create();	}	/**	 * Create a log file	 */	protected static void addLogFile() throws IOException {		FileHandler logFileHandler = new FileHandler("log.txt");		logFileHandler.setFormatter(new SimpleFormatter());		logger.addHandler(logFileHandler);	}}

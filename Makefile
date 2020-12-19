@@ -1,7 +1,16 @@
-TEST="download https://kissmanga.org/manga/kimi_no_tsuku_uso_to_hontou"
+TEST="-h https://kissmanga.org/manga/seshiji_o_pin_to_shikakou_kyougi_dancebu_e_youkoso"
 
 run:
-	gradle run --args=$(TEST)
+	gradle run
+
+down:
+	gradle run --args="download https://kissmanga.org/manga/seshiji_o_pin_to_shikakou_kyougi_dancebu_e_youkoso"
+
+pack:
+	gradle run --args="pack \"Seshiji O Pin! To - Shikakou Kyougi Dance-Bu E Youkoso\""
+
+help:
+	gradle run --args="-h"
 
 exec:
 	gradle build

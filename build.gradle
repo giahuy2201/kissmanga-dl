@@ -20,6 +20,18 @@ application {
     mainClass.set("com.giahuy2201.manga_dl.MangaDL")
 }
 
+jar {
+    manifest {
+        attributes "Main-Class": application.getMainClass().get()
+    }
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
 test {
     useJUnitPlatform()
 }
@@ -37,10 +49,12 @@ dependencies {
     implementation 'org.seleniumhq.selenium:selenium-java:3.141.59'
     implementation 'org.jsoup:jsoup:1.9.1'
     implementation 'nl.siegmann.epublib:epublib-core:3.1'
-    implementation 'me.tongfei:progressbar:0.8.1'
-    implementation 'com.beust:jcommander:1.78'
+    implementation 'me.tongfei:progressbar:0.9.0'
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
+    implementation 'org.glassfish.jaxb:jaxb-runtime:2.3.0'
+    implementation 'xmlpull:xmlpull:1.1.3.1'
+    implementation 'info.picocli:picocli:4.5.2'
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.7.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
 
 }
 
