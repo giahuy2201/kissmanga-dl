@@ -10,6 +10,7 @@ import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import picocli.CommandLine.ParameterException;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Marshaller;
@@ -69,8 +70,11 @@ public class Extractor implements Serializable {
 
 	Extractor(String url, Extractable source) throws Exception {
 		this.source = source;
+		if (url == null) {
+			throw new ParameterException(MangaDL.cli, "Missing URL");
+		}
 		if (!source.validate(url)) {
-			throw new Exception("Unsupported URL");
+			throw new Exception("Unsupported url");
 		}
 
 		Logger.getLogger("org.openqa.selenium").setLevel(Level.OFF);
@@ -85,6 +89,7 @@ public class Extractor implements Serializable {
 
 		retrieveData(url);
 		browser.close();
+		MangaDL.logger.finest("EXTRACTING finished\n");
 	}
 
 	Extractor(File mangaDirectory) throws Exception {
@@ -94,6 +99,7 @@ public class Extractor implements Serializable {
 		}
 		File xmlFile = new File(mangaDirectory, "manga.xml");
 		readData(xmlFile);
+		MangaDL.logger.finest("EXTRACTING finished\n");
 	}
 
 	private void retrieveData(String url) throws Exception {
@@ -105,15 +111,21 @@ public class Extractor implements Serializable {
 			readData(xmlFile);
 		} else {
 			System.out.println(title);
+			MangaDL.logger.info("Retrieving info of manga " + title);
 			this.chapters = new ArrayList<>();
 			this.cover = "000-000";
 			this.authors = source.retrieveAuthors(page);
 			this.chaptersURLs = source.retrieveChaptersURLs(page);
 			setChaptersNames(source.retrieveChaptersNames(page));
-			Iterable<String> chaptersURLs = ProgressBar.wrap(this.chaptersURLs, "Extracting");
+			Iterable<String> chaptersURLs = this.chaptersURLs;
+			if (!MangaDL.verbose) {
+				chaptersURLs = ProgressBar.wrap(this.chaptersURLs, "Extracting");
+			}
 			for (String chapterUrl : chaptersURLs) {
 				getPage(chapterUrl);
+				MangaDL.logger.info("Collecting image urls from " + chapterUrl);
 				setChapterPNGs(source.retrieveChapterPNGs(page));
+				MangaDL.logger.fine("Found " + chapters.get(index).images.size() + " frames");
 				this.index++;
 			}
 			writeData();
@@ -121,6 +133,7 @@ public class Extractor implements Serializable {
 	}
 
 	private void getPage(String url) {
+		MangaDL.logger.info("Opening page " + url);
 		browser.get(url);
 		WebDriverWait wait = new WebDriverWait(browser, 1, 50);
 		wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.id("navbar")));
@@ -128,6 +141,7 @@ public class Extractor implements Serializable {
 	}
 
 	private void readData(File xmlFile) throws Exception {
+		MangaDL.logger.fine("Found manga.xml file");
 		JAXBContext jaxbContext = JAXBContext.newInstance(Extractor.class);
 		Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
 		Extractor ext = (Extractor) jaxbUnmarshaller.unmarshal(xmlFile);
@@ -141,6 +155,7 @@ public class Extractor implements Serializable {
 	}
 
 	private void writeData() throws Exception {
+		MangaDL.logger.info("Saving manga.xml");
 		JAXBContext context = JAXBContext.newInstance(Extractor.class);
 		Marshaller mar = context.createMarshaller();
 		mar.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);

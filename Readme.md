@@ -43,13 +43,14 @@ You now have successfully built your `manga-dl-2.0.jar`.
 Before continue, make sure you have `chromedriver` in the project foler as well as Google Chrome installed.
 You can now start executing your command by prompting it with `java -jar build/libs/manga-dl-2.0.jar`. Here is the help message.
 ```
-Usage: manga-dl [-hl] [URL] [COMMAND]
-      [URL]    Link to manga.
-  -h, --help   Show this help message.
-  -l, --log    Save log file.
+Usage: manga-dl [-hlv] [URL] [COMMAND]
+      [URL]       Link to manga.
+  -h, --help      Show this help message.
+  -l, --log       Save log file.
+  -v, --verbose   Enable console log
 Commands:
   download  Only download image files (.png).
-  pack      Pack image files (.png) into an EPUB file.
+  bundle    Pack image files (.png) into an EPUB file
 ```
 
 ### Examples
@@ -66,7 +67,7 @@ java -jar build/libs/manga-dl-2.0.jar download https://kissmanga.org/manga/bv917
 ```
 Bundle images files into an EPUB file
 ```
-java -jar build/libs/manga-dl-2.0.jar pack 'Tensura Nikki Tensei Shitara Slime Datta Ken'
+java -jar build/libs/manga-dl-2.0.jar bundle 'Tensura Nikki Tensei Shitara Slime Datta Ken'
 ```
 
 _manga-dl_  first downloads and stores your manga frames int a folder under the manga's title in `.png` format. It then collects all the frames and bundle them into an EPUB file. In addition, it saves your manga's metadata as well as all the frames' urls in `manga.xml` located at the manga directory for later bundling options. The EPUB file of your manga is generated right at the project folder, the manga folder can be deleted safely afterward.
