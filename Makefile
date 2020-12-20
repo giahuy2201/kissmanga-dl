@@ -12,11 +12,7 @@ pack:
 help:
 	gradle run --args="-h"
 
-exec:
-	gradle build
-	java -cp target/kissmanga-dl-2.0.jar MangaDL $(TEST)
-
 install:
-	cat base.sh target/kissmanga-dl-1.0.jar > kissmanga-dl && chmod +x kissmanga-dl
-	cp kissmanga-dl /usr/local/bin
+	cat base.sh build/libs/manga-dl-2.0.jar > manga-dl && chmod +x manga-dl
+	cp manga-dl /usr/local/bin
 

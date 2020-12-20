@@ -1,5 +1,14 @@
 package com.giahuy2201.manga_dl;
 
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.PullImageResultCallback;
+import com.github.dockerjava.api.model.*;
+import com.github.dockerjava.core.DefaultDockerClientConfig;
+import com.github.dockerjava.core.DockerClientConfig;
+import com.github.dockerjava.core.DockerClientImpl;
+import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import com.github.dockerjava.transport.DockerHttpClient;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -16,6 +25,7 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.logging.Level;
 
 
@@ -108,5 +118,41 @@ public class GeneralTest {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    @Test
+    public void testDockerHttpClient() throws Exception{
+        DockerClientConfig standard = DefaultDockerClientConfig.createDefaultConfigBuilder()
+                .withDockerHost("unix:///var/run/docker.sock")
+                .build();
+
+        DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
+                .dockerHost(standard.getDockerHost())
+                .build();
+
+        DockerHttpClient.Request request = DockerHttpClient.Request.builder()
+                .method(DockerHttpClient.Request.Method.GET)
+                .path("/images/json")
+                .build();
+
+        DockerHttpClient.Response response = httpClient.execute(request);
+            System.out.println(response.getStatusCode());
+            System.out.println(response.getBody());
+
+        DockerClient dockerClient = DockerClientImpl.getInstance(standard, httpClient);
+        List<Image> images = dockerClient.listImagesCmd().exec();
+
+        ExposedPort tcp4444 = new ExposedPort(4444, InternetProtocol.TCP);
+        dockerClient.pingCmd().exec();
+        Ports portBindings = new Ports();
+        portBindings.bind(tcp4444, Ports.Binding.bindPort(4444));
+        HostConfig hostConfig = new HostConfig().withShmSize(2 * 1024 * 1024 * (long) 1024).withPortBindings(portBindings);
+        PullImageResultCallback pulledImg = new PullImageResultCallback();
+        dockerClient.pullImageCmd("selenium/standalone-chrome:latest").exec(pulledImg);
+        pulledImg.awaitCompletion();
+        CreateContainerResponse ccc = dockerClient.createContainerCmd("selenium/standalone-chrome:latest").withHostConfig(hostConfig).exec();
+
+        System.out.println(ccc.getId());
+//        dockerClient.killContainerCmd();
     }
 }

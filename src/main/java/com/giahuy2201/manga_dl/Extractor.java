@@ -1,13 +1,25 @@
 package com.giahuy2201.manga_dl;
 
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.PullImageResultCallback;
+import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.Image;
+import com.github.dockerjava.api.model.Ports;
+import com.github.dockerjava.core.DefaultDockerClientConfig;
+import com.github.dockerjava.core.DockerClientConfig;
+import com.github.dockerjava.core.DockerClientImpl;
+import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import com.github.dockerjava.transport.DockerHttpClient;
 import me.tongfei.progressbar.ProgressBar;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import picocli.CommandLine.ParameterException;
@@ -19,6 +31,7 @@ import javax.xml.bind.annotation.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -64,6 +77,9 @@ public class Extractor implements Serializable {
 
 	@XmlElementWrapper(name = "chapters")
 	private List<Chapter> chapters;
+	private static DockerClient dockerClient;
+	private static String containerId;
+	private static boolean running;
 
 	Extractor() {
 	}
@@ -74,28 +90,35 @@ public class Extractor implements Serializable {
 			throw new ParameterException(MangaDL.cli, "Missing URL");
 		}
 		if (!source.validate(url)) {
-			throw new ParameterException(MangaDL.cli,"Unsupported url");
+			throw new ParameterException(MangaDL.cli, "Unsupported url");
 		}
 
+		try {
+			startContainer();
+		} catch (Exception e) {
+			throw new ParameterException(MangaDL.cli, "Check your Docker and try again");
+		}
+		Extractor.running = true;
 		Logger.getLogger("org.openqa.selenium").setLevel(Level.OFF);
-
-		System.setProperty(ChromeDriverService.CHROME_DRIVER_EXE_PROPERTY, "chromedriver");
+//		System.setProperty(ChromeDriverService.CHROME_DRIVER_EXE_PROPERTY, "chromedriver");
 		System.setProperty(ChromeDriverService.CHROME_DRIVER_SILENT_OUTPUT_PROPERTY, "true");
 		System.setProperty(ChromeDriverService.CHROME_DRIVER_LOG_PROPERTY, "/dev/null");
 
 		ChromeOptions options = new ChromeOptions();
 		options.setHeadless(true);
-		this.browser = new ChromeDriver(options);
+		this.browser = new RemoteWebDriver(new URL("http://localhost:4444/wd/hub"), options);
 
 		retrieveData(url);
 		browser.close();
+		closeContainer();
 		MangaDL.logger.finest("EXTRACTING finished\n");
 	}
 
 	Extractor(File mangaDirectory) throws Exception {
+		Extractor.running=false;
 		this.mangaDirectory = mangaDirectory;
 		if (!mangaDirectory.exists()) {
-			throw new IOException("Manga folder does not exist!");
+			throw new ParameterException(MangaDL.cli, "Manga folder does not exist!");
 		}
 		File xmlFile = new File(mangaDirectory, "manga.xml");
 		readData(xmlFile);
@@ -104,7 +127,11 @@ public class Extractor implements Serializable {
 
 	private void retrieveData(String url) throws Exception {
 		getPage(url);
-		this.title = source.retrieveTitle(page);
+		try {
+			this.title = source.retrieveTitle(page);
+		} catch (Exception e) {
+			throw new ParameterException(MangaDL.cli, "Page not found");
+		}
 		this.mangaDirectory = new File(title);
 		File xmlFile = new File(mangaDirectory, "manga.xml");
 		if (xmlFile.exists()) {
@@ -215,5 +242,50 @@ public class Extractor implements Serializable {
 
 	protected void setChapterPNGs(List<String> chapterPNGs) {
 		chapters.get(index).images = chapterPNGs;
+	}
+
+	protected void startContainer() throws Exception {
+		DockerClientConfig dockerConfig = DefaultDockerClientConfig.createDefaultConfigBuilder()
+				.withDockerHost("unix:///var/run/docker.sock")
+				.build();
+		DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
+				.dockerHost(dockerConfig.getDockerHost())
+				.build();
+		Extractor.dockerClient = DockerClientImpl.getInstance(dockerConfig, httpClient);
+
+		final String imageName = "selenium/standalone-chrome:87.0";
+		PullImageResultCallback pulledImg = new PullImageResultCallback();
+		List<Image> images = dockerClient.listImagesCmd().withImageNameFilter(imageName).exec();
+		boolean imageNotFound = true;
+		for (Image image : images) {
+			String[] repoTags = image.getRepoTags();
+			if (repoTags != null && repoTags.length > 0 && repoTags[0].equals(imageName)) {
+				imageNotFound = false;
+				break;
+			}
+		}
+		if (imageNotFound) {
+			System.out.println("Pulling Docker image " + imageName);
+			MangaDL.logger.info("Pulling image " + imageName);
+			dockerClient.pullImageCmd(imageName).exec(pulledImg);
+			pulledImg.awaitCompletion();
+		}
+		Ports portBindings = new Ports();
+		portBindings.bind(ExposedPort.tcp(4444), Ports.Binding.bindPort(4444));
+		HostConfig hostConfig = new HostConfig().withShmSize(2 * 1024 * 1024 * (long) 1024).withPortBindings(portBindings);
+		CreateContainerResponse container = dockerClient.createContainerCmd(imageName).withHostConfig(hostConfig).exec();
+		Extractor.containerId = container.getId();
+		dockerClient.startContainerCmd(containerId).exec();
+		Thread.sleep(4000);
+	}
+
+	protected static void closeContainer() throws Exception {
+		if (running) {
+			MangaDL.logger.info("Closing container " + containerId);
+			dockerClient.stopContainerCmd(containerId).exec();
+			dockerClient.removeContainerCmd(containerId).exec();
+			dockerClient.close();
+			Extractor.running = false;
+		}
 	}
 }
