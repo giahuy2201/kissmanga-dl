@@ -68,13 +68,13 @@ public class Extractor implements Serializable {
 	Extractor() {
 	}
 
-	Extractor(String url, Extractable source) throws Exception {
-		this.source = source;
+	Extractor(String url) throws Exception {
+		this.source = new Kissmanga();
 		if (url == null) {
 			throw new ParameterException(MangaDL.cli, "Missing URL");
 		}
 		if (!source.validate(url)) {
-			throw new Exception("Unsupported url");
+			throw new ParameterException(MangaDL.cli,"Unsupported url");
 		}
 
 		Logger.getLogger("org.openqa.selenium").setLevel(Level.OFF);

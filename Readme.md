@@ -13,7 +13,7 @@ Here is how the downloaded manga look like when you import them into [_Lithium_]
 - [x] _youtube-dl_-like command line interface.
 - [x] Chapter-mark **EPUB** bundling.
 - [x] Multithreading image downloading.
-- [ ] PDF bundling.
+- [x] PDF support.
 - [ ] Compressed **EPUB**  bundling.
 - [ ] Dockerized execution. 
 - [ ] Other sites support.
@@ -36,23 +36,25 @@ cd manga-dl
 ```
 ./gradlew clean jar
 ```
+4. Download the right version of `chromedriver` [here](https://chromedriver.chromium.org/downloads), unzip and copy it into the project directory (replace the one currently there unless you use macOS).
 You now have successfully built your `manga-dl-2.0.jar`.
 
 ## Usage
 
-Before continue, make sure you have `chromedriver` in the project foler as well as Google Chrome installed.
+Before continue, make sure you have `chromedriver` in the project folder as well as Google Chrome installed.
 You can now start executing your command by prompting it with `java -jar build/libs/manga-dl-2.0.jar`. Here is the help message.
 ```
-Usage: manga-dl [-hlv] [URL] [COMMAND]
-      [URL]       Link to manga.
-  -h, --help      Show this help message.
-  -l, --log       Save log file.
-  -v, --verbose   Enable console log
+Usage: manga-dl [-hlv] [-f=<format>] [URL] [COMMAND]
+      [URL]               Link to manga.
+  -f, --format=<format>   Output format of manga (i.e. epub, pdf).
+  -h, --help              Show this help message.
+  -l, --log               Save log file.
+  -v, --verbose           Enable console log.
 Commands:
   download  Only download image files (.png).
   bundle    Pack image files (.png) into an EPUB file
 ```
-> Note: add option `-t` followed by number of threads that your computer can handle optimally to adjust downloading performance. By default, this option is set to 10 which works perfectly on my setup.
+> Note: add option `-t=` followed by number of threads (no space) that your computer can handle optimally to adjust downloading performance. By default, this option is set to 10 which works perfectly on my setup.
 
 ### Examples
 

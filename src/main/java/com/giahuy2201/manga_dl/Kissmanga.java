@@ -39,9 +39,9 @@ public class Kissmanga implements Extractable {
 		List<String> chaptersNames = new ArrayList<>();
 		for (Element element : elements) {
 			// raw processing
-			String name = element.text().replace(title, "").strip();
+			String name = escape(element.text()).replace(title, "").strip();
 			name = name.startsWith("-") ? name.substring(1) : name;
-			chaptersNames.add(escape(escape(name)));
+			chaptersNames.add(escape(name));
 		}
 		Collections.reverse(chaptersNames);
 		return chaptersNames;
