@@ -32,6 +32,11 @@ public class Kissmanga implements Extractable {
 		wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.id("navbar")));
 	}
 
+	@Override
+	public String baseURL() {
+		return BASE_URL;
+	}
+
 	private String escape(String str) {
 		return str.replace("/", "|").replace(".", ":").strip();
 	}

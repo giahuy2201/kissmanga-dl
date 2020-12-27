@@ -15,7 +15,6 @@ import com.github.dockerjava.transport.DockerHttpClient;
 import me.tongfei.progressbar.ProgressBar;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -101,12 +100,13 @@ public class Extractor implements Serializable {
 
 		ChromeOptions options = new ChromeOptions();
 //		options.setHeadless(true);
-		options.addArguments("--start-maximized");
-		options.setExperimentalOption("excludeSwitches", new String [] {"enable-automation"});
-		options.setExperimentalOption("useAutomationExtension", false);
-		options.addArguments("--user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.53 Safari/537.36\"");
+//		options.addArguments("--start-maximized");
+//		options.setExperimentalOption("excludeSwitches", new String [] {"enable-automation"});
+//		options.setExperimentalOption("useAutomationExtension", false);
+//		options.addArguments("--user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.53 Safari/537.36\"");
 		this.browser = new RemoteWebDriver(new URL("http://localhost:4444/wd/hub"), options);
-		((JavascriptExecutor)browser).executeScript("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})");
+//		this.browser = new ChromeDriver(options);
+//		((JavascriptExecutor)browser).executeScript("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})");
 
 		retrieveData(url);
 		browser.close();
@@ -135,6 +135,8 @@ public class Extractor implements Serializable {
 			this.source = new MangaRawr();
 //		}else if(url.toLowerCase().contains("mangafreak")){
 //			this.source = new Mangafreak();
+		}else if(url.toLowerCase().contains("nettruyen")){
+			this.source = new NetTruyen();
 		}else{
 			throw new ParameterException(MangaDL.cli, "Unsupported url");
 		}
@@ -206,6 +208,10 @@ public class Extractor implements Serializable {
 		} else {
 			throw new IOException("Cannot save manga.xml file!");
 		}
+	}
+
+	public String getBaseURL() {
+		return source.baseURL();
 	}
 
 	public String getCover() {

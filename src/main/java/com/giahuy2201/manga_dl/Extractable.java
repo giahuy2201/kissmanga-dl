@@ -11,6 +11,8 @@ public interface Extractable {
 	
 	void waitLoading(WebDriver page);
 
+	String baseURL();
+
 	String retrieveTitle(Document page);
 
 	String retrieveAuthors(Document page);
@@ -20,4 +22,5 @@ public interface Extractable {
 	List<String> retrieveChaptersURLs(Document page);
 
 	List<String> retrieveChapterPNGs(Document page);
+
 }
