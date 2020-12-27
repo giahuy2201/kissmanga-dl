@@ -16,65 +16,58 @@ import java.util.regex.Pattern;
 /**
  * Extract some basic info for metadata
  */
-public class Kissmanga implements Extractable {
-
-	final String BASE_URL = "https://kissmanga.org";
-	private String title;
+public class MangaRawr implements Extractable {
 
 	@Override
 	public boolean validate(String url) {
-		return Pattern.matches("https?://kissmanga\\.org/manga/[^/]+/?", url);
+		return Pattern.matches("https?://mangarawr\\.com/manga/[^/]+/?", url);
 	}
 
 	@Override
 	public void waitLoading(WebDriver page) {
-		WebDriverWait wait = new WebDriverWait(page, 1, 50);
-		wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.id("navbar")));
+		WebDriverWait wait = new WebDriverWait(page, 2, 0);
+		wait.until(ExpectedConditions.presenceOfElementLocated(By.className("navbar-nav")));
 	}
 
 	private String escape(String str) {
-		return str.replace("/", "|").replace(".", ":").strip();
+		return str.replace("\n", "").replace("/", "|").replace(".", ":").strip();
 	}
 
 	@Override
 	public String retrieveTitle(Document page) {
-		this.title = escape(page.select("h2 strong.bigChar").first().text());
-		return title;
+		return escape(page.select(".post-title h3").first().text());
 	}
 
 	@Override
 	public String retrieveAuthors(Document page) {
-		return escape(page.select("p.info:nth-child(3) a.dotUnder").first().text());
+		return escape(page.select(".author-content a[href]").first().text());
 	}
 
 	@Override
 	public List<String> retrieveChaptersNames(Document page) {
-		Elements elements = page.select(".listing h3 a[href]");
+		Elements elements = page.select("li.wp-manga-chapter a[href]");
 		List<String> chaptersNames = new ArrayList<>();
-		for (Element element : elements) {
-			// raw processing
-			String name = escape(element.text()).replace(title, "").strip();
-			name = name.startsWith("-") ? name.substring(1) : name;
-			chaptersNames.add(escape(name));
+		for (Element element : elements) {;
+			chaptersNames.add(escape(element.text()));
 		}
-		Collections.reverse(chaptersNames);
+		Collections.sort(chaptersNames);
 		return chaptersNames;
 	}
 
 	@Override
 	public List<String> retrieveChaptersURLs(Document page) {
-		Elements elements = page.select(".listing h3 a[href]");
+		Elements elements = page.select("li.wp-manga-chapter a[href]");
 		List<String> chaptersURLs = new ArrayList<>();
 		for (Element element : elements) {
-			chaptersURLs.add(BASE_URL + element.attr("href"));
+			chaptersURLs.add( element.attr("href"));
 		}
-		Collections.reverse(chaptersURLs);
+		Collections.sort(chaptersURLs);
 		return chaptersURLs;
 	}
 
 	@Override
 	public List<String> retrieveChapterPNGs(Document page) {
-		Elements elements = page.select("div#centerDivVideo img");
+		Elements elements = page.select("div.page-break img[src]");
 		List<String> chapterPNGs = new ArrayList<>();
 		for (Element element : elements) {
 			chapterPNGs.add(element.attr("src"));

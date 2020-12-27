@@ -15,13 +15,11 @@ import com.github.dockerjava.transport.DockerHttpClient;
 import me.tongfei.progressbar.ProgressBar;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.remote.RemoteWebDriver;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import picocli.CommandLine.ParameterException;
 
 import javax.xml.bind.JAXBContext;
@@ -85,10 +83,7 @@ public class Extractor implements Serializable {
 	}
 
 	Extractor(String url) throws Exception {
-		this.source = new Kissmanga();
-		if (url == null) {
-			throw new ParameterException(MangaDL.cli, "Missing URL");
-		}
+		selectExtractor(url);
 		if (!source.validate(url)) {
 			throw new ParameterException(MangaDL.cli, "Unsupported url");
 		}
@@ -100,13 +95,18 @@ public class Extractor implements Serializable {
 		}
 		Extractor.running = true;
 		Logger.getLogger("org.openqa.selenium").setLevel(Level.OFF);
-//		System.setProperty(ChromeDriverService.CHROME_DRIVER_EXE_PROPERTY, "chromedriver");
+		System.setProperty(ChromeDriverService.CHROME_DRIVER_EXE_PROPERTY, "chromedriver");
 		System.setProperty(ChromeDriverService.CHROME_DRIVER_SILENT_OUTPUT_PROPERTY, "true");
 		System.setProperty(ChromeDriverService.CHROME_DRIVER_LOG_PROPERTY, "/dev/null");
 
 		ChromeOptions options = new ChromeOptions();
-		options.setHeadless(true);
+//		options.setHeadless(true);
+		options.addArguments("--start-maximized");
+		options.setExperimentalOption("excludeSwitches", new String [] {"enable-automation"});
+		options.setExperimentalOption("useAutomationExtension", false);
+		options.addArguments("--user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.53 Safari/537.36\"");
 		this.browser = new RemoteWebDriver(new URL("http://localhost:4444/wd/hub"), options);
+		((JavascriptExecutor)browser).executeScript("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})");
 
 		retrieveData(url);
 		browser.close();
@@ -123,6 +123,21 @@ public class Extractor implements Serializable {
 		File xmlFile = new File(mangaDirectory, "manga.xml");
 		readData(xmlFile);
 		MangaDL.logger.finest("EXTRACTING finished\n");
+	}
+
+	private void selectExtractor(String url) throws Exception{
+		if (url == null) {
+			throw new ParameterException(MangaDL.cli, "Missing URL");
+		}
+		if(url.toLowerCase().contains("kissmanga")){
+			this.source = new Kissmanga();
+		}else if(url.toLowerCase().contains("mangarawr")){
+			this.source = new MangaRawr();
+//		}else if(url.toLowerCase().contains("mangafreak")){
+//			this.source = new Mangafreak();
+		}else{
+			throw new ParameterException(MangaDL.cli, "Unsupported url");
+		}
 	}
 
 	private void retrieveData(String url) throws Exception {
@@ -162,8 +177,7 @@ public class Extractor implements Serializable {
 	private void getPage(String url) {
 		MangaDL.logger.info("Opening page " + url);
 		browser.get(url);
-		WebDriverWait wait = new WebDriverWait(browser, 1, 50);
-		wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.id("navbar")));
+		source.waitLoading(browser);
 		this.page = Jsoup.parse(browser.getPageSource());
 	}
 
@@ -272,11 +286,12 @@ public class Extractor implements Serializable {
 		}
 		Ports portBindings = new Ports();
 		portBindings.bind(ExposedPort.tcp(4444), Ports.Binding.bindPort(4444));
+		portBindings.bind(ExposedPort.tcp(5900), Ports.Binding.bindPort(5900));
 		HostConfig hostConfig = new HostConfig().withShmSize(2 * 1024 * 1024 * (long) 1024).withPortBindings(portBindings);
 		CreateContainerResponse container = dockerClient.createContainerCmd(imageName).withHostConfig(hostConfig).exec();
 		Extractor.containerId = container.getId();
 		dockerClient.startContainerCmd(containerId).exec();
-		Thread.sleep(4000);
+		Thread.sleep(6000);
 	}
 
 	protected static void closeContainer() throws Exception {
