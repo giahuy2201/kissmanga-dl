@@ -80,8 +80,9 @@ public class PDF implements Packable {
 
 	private void addFrame(File png) throws IOException {
 		PDImageXObject image = PDImageXObject.createFromFile(png.getAbsolutePath(), book);
-		int width = image.getWidth();
-		int height = image.getHeight();
+		int OriginalWidth = image.getWidth();
+		int width = 210;
+		int height = Math.round(image.getHeight() * (float) width / OriginalWidth);
 		PDRectangle frame = new PDRectangle(width, height);
 		PDPage page = new PDPage(frame);
 		this.book.addPage(page);

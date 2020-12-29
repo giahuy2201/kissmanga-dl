@@ -12,12 +12,13 @@ Here is how the downloaded manga look like when you import them into [_Lithium_]
 ## Features
 
 - [x] _youtube-dl_-like command line interface.
-- [x] Chapter-mark EPUB bundling.
+- [x] Chapter-mark book bundling.
 - [x] Multithreading image downloading.
-- [x] PDF support.
+- [x] EPUB and PDF support.
 - [x] Dockerized execution. 
-- [ ] Compressed EPUB  bundling.
-- [ ] Other sites support.
+- [x] New chapters resuming.
+- [x] Other sites support i.e. MangaRawr, Nettruyen.
+- [ ] Compressed PDF bundling.
 
 ## Setup
 
@@ -36,14 +37,14 @@ cd manga-dl
 ```
 ./gradlew clean jar
 ```
-You now have successfully built your `manga-dl-2.0.jar`.
+You now have successfully built your `manga-dl-2.1.jar`.
 
 I'm not sure if this works for your OS, but try executing `make install` in the project directory to install _manga-dl_ in your PATH. If it succeeds you can then run _manga-dl_ as a cli tool like _youtube-dl_. You can remove _manga-dl_ using this command `rm  /usr/local/bin/manga-dl`
 
 ## Usage
 
 Before continue, make sure you have started Docker daemon. If you are on mac or windows, just open up your _Docker Desktop_.
-You can now start executing your command by prompting it with `java -jar build/libs/manga-dl-2.0.jar`. Here is the help message.
+You can now start executing your command by prompting it with `java -jar build/libs/manga-dl-2.1.jar`. Here is the help message.
 ```
 Usage: manga-dl [-hlv] [-f=<format>] [URL] [COMMAND]
       [URL]               Link to manga.
@@ -54,7 +55,7 @@ Usage: manga-dl [-hlv] [-f=<format>] [URL] [COMMAND]
 Commands:
   download  Only download image files (.png).
   bundle    Pack image files (.png) into an EPUB file
-Supported sites: Kissmanga.org
+Supported sites: Kissmanga, MangaRawr, Nettruyen
 ```
 > Note: add option `-t=` followed by number of threads (no space) that your computer can handle optimally to adjust downloading performance. By default, this option is set to 10 which works perfectly on my setup.
 
@@ -62,24 +63,28 @@ Supported sites: Kissmanga.org
 
 Download and pack manga
 ```
-java -jar build/libs/manga-dl-2.0.jar https://kissmanga.org/manga/bv917658
+java -jar build/libs/manga-dl-2.1.jar https://kissmanga.org/manga/bv917658
 ```
 ![Download and pack manga command output](screens-usage.png)
 
 Download and save image files
 ```
-java -jar build/libs/manga-dl-2.0.jar download https://kissmanga.org/manga/bv917658
+java -jar build/libs/manga-dl-2.1.jar download https://kissmanga.org/manga/bv917658
 ```
 Bundle images files into an EPUB file
 ```
-java -jar build/libs/manga-dl-2.0.jar bundle 'Tensura Nikki Tensei Shitara Slime Datta Ken'
+java -jar build/libs/manga-dl-2.1.jar bundle 'Tensura Nikki Tensei Shitara Slime Datta Ken'
 ```
 Bundle images files into an PDF file
 ```
-java -jar build/libs/manga-dl-2.0.jar bundle -f=pdf 'Tensura Nikki Tensei Shitara Slime Datta Ken'
+java -jar build/libs/manga-dl-2.1.jar bundle -f=pdf 'Tensura Nikki Tensei Shitara Slime Datta Ken'
 ```
 
 _manga-dl_  first downloads and stores your manga frames int a folder under the manga's title in `.png` format. It then collects all the frames and bundle them into an EPUB file. In addition, it saves your manga's metadata as well as all the frames' urls in `manga.xml` located at the manga directory for later bundling options. The EPUB file of your manga is generated right at the project folder, the manga folder can be deleted safely afterward.
+
+### Issues
+
+- You may encounter OutOfMemory error when bundling large PDF file. This is because PDFBox which is the library _manga-dl_ uses to bundle PDF file saves loaded images as objects in memory instead of references. To address this issue, you can add `-Xmx` followed by the amount of RAM for the program (i.e. `-Xmx4g`, `-Xmx6g`,`-Xmx8g`, etc.) if you run the `.jar` file. In case you had used `make install` to install _manga-dl_, you can increase the memory for the program by replacing `-Xmx4g` with a higher one and run `make install` again.
 
 ## How it works
 

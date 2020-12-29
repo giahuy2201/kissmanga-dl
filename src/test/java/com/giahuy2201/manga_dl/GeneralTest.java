@@ -24,8 +24,18 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Level;
 
 
@@ -154,5 +164,33 @@ public class GeneralTest {
 
         System.out.println(ccc.getId());
 //        dockerClient.killContainerCmd();
+    }
+
+    @Test
+    public void testImgCompress() throws Exception{
+        try {
+            BufferedImage bimg = ImageIO.read(new File("001.png"));
+
+            Iterator iter = ImageIO.getImageWritersByFormatName("jpg");
+            ImageWriter writer;
+            writer = (ImageWriter) iter.next();
+
+            ImageOutputStream ios = ImageIO.createImageOutputStream(new File("001.jpg"));
+            writer.setOutput(ios);
+
+            ImageWriteParam iwparam = new JPEGImageWriteParam(Locale.getDefault());
+
+            iwparam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+            iwparam.setCompressionQuality(0.5F);
+
+            writer.write(null, new IIOImage(bimg, null, null), iwparam);
+
+            ios.flush();
+            writer.dispose();
+            ios.close();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

@@ -13,6 +13,6 @@ help:
 	gradle run --args="-h"
 
 install:
-	cat base.sh build/libs/manga-dl-2.0.jar > manga-dl && chmod +x manga-dl
+	cat base.sh build/libs/manga-dl-2.1.jar > manga-dl && chmod +x manga-dl
 	cp manga-dl /usr/local/bin
 
