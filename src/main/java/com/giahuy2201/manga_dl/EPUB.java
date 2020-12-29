@@ -11,6 +11,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * EPUB bunder
+ */
 public class EPUB implements Packable {
 
 	private final ClassLoader resourceLoader;
@@ -48,21 +51,14 @@ public class EPUB implements Packable {
 		}
 	}
 
-	/**
-	 * Create Epub book file from images and metadata in manga.xml file in
-	 * mangaDirectory
-	 *
-	 * @throws IOException
-	 */
 	public void saveBook() throws IOException {
 		EpubWriter epubWriter = new EpubWriter();
 		epubWriter.write(book, new FileOutputStream(MangaDL.extractor.getTitle() + ".epub"));
 	}
 
 	/**
-	 * Construct a html file with chapter images
-	 *
-	 * @param PNGs
+	 * Construct a html file with chapter images and convert it to a stream
+	 * @param PNGs all pngs
 	 * @return
 	 */
 	private InputStream chapter2InputStream(List<File> PNGs) throws IOException {

@@ -14,6 +14,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * PDF bundler
+ */
 public class PDF implements Packable {
 
 	private PDDocument book;
@@ -78,6 +81,11 @@ public class PDF implements Packable {
 		book.close();
 	}
 
+	/**
+	 * Add new page with image embedded to the book
+	 * @param png png file of the image to be added
+	 * @throws IOException
+	 */
 	private void addFrame(File png) throws IOException {
 		PDImageXObject image = PDImageXObject.createFromFile(png.getAbsolutePath(), book);
 		int OriginalWidth = image.getWidth();
