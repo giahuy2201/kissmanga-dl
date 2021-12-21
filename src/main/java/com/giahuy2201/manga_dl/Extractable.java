@@ -23,11 +23,15 @@ public interface Extractable {
 	 */
 	void waitLoading(WebDriver page);
 
+	void setHeader(WebDriver page);
+
 	/**
 	 * Get site base URL
 	 * @return
 	 */
 	String baseURL();
+
+	void getChapterList(WebDriver page);
 
 	/**
 	 * Use CSS selector to find the manga title
@@ -42,6 +46,13 @@ public interface Extractable {
 	 * @return
 	 */
 	String retrieveAuthors(Document page);
+
+	/**
+	 * Use CSS selector to collect all chapter list page url
+	 * @param page Page source of the manga page
+	 * @return
+	 */
+	List<String> retrieveChapterPages(Document page);
 
 	/**
 	 * Use CSS selector to collect all chapters names
@@ -62,6 +73,6 @@ public interface Extractable {
 	 * @param page Page source of the manga chapter
 	 * @return
 	 */
-	List<String> retrieveChapterPNGs(Document page);
+	List<String> retrieveChapterPNGs(Document page, WebDriver browser);
 
 }

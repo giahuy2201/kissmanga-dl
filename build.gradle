@@ -5,6 +5,7 @@
 plugins {
     id 'java'
     id 'application'
+    id 'com.github.johnrengelman.shadow' version '7.1.0'
 }
 
 group = 'com.giahuy2201'
@@ -67,5 +68,10 @@ dependencies {
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
     testCompileOnly 'junit:junit:4.13'
     testRuntimeOnly 'org.junit.vintage:junit-vintage-engine'
+}
+
+// Minimizing an shadow JAR
+shadowJar {
+    minimize()
 }
 

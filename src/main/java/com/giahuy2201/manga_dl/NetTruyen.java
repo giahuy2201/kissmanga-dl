@@ -33,12 +33,22 @@ public class NetTruyen implements Extractable {
 	}
 
 	@Override
+	public void setHeader(WebDriver page) {
+
+	}
+
+	@Override
 	public String baseURL() {
 		return BASE_URL;
 	}
 
+	@Override
+	public void getChapterList(WebDriver page) {
+
+	}
+
 	private String escape(String str) {
-		return str.replace("/", "|").replace(".", ":").strip();
+		return str.replace("/", "|").replace(".", ":").trim();
 	}
 
 	@Override
@@ -50,6 +60,11 @@ public class NetTruyen implements Extractable {
 	@Override
 	public String retrieveAuthors(Document page) {
 		return escape(page.select("li.author p.col-xs-8").first().text());
+	}
+
+	@Override
+	public List<String> retrieveChapterPages(Document page) {
+		return null;
 	}
 
 	@Override
@@ -75,7 +90,7 @@ public class NetTruyen implements Extractable {
 	}
 
 	@Override
-	public List<String> retrieveChapterPNGs(Document page) {
+	public List<String> retrieveChapterPNGs(Document page, WebDriver browser) {
 		Elements elements = page.select("div.page-chapter img[src]");
 		List<String> chapterPNGs = new ArrayList<>();
 		for (Element element : elements) {
